@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Despertador Moderno com Carrossel de Tempo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #e0f7fa; /* Um azul claro suave */
+            margin: 0;
+            color: #333;
+            flex-direction: column; /* Para alinhar o container principal e os carrosséis */
+        }
+
+        .alarm-container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px; /* Espaço entre o container do alarme e os overlays de seleção */
+        }
+
+        h1 {
+            color: #00796b; /* Um verde-azulado mais escuro */
+            margin-bottom: 25px;
+            font-size: 2.2em;
+        }
+
+        .time-display {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #263238;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+        }
+
+        /* --- Regras para o Botão de Ação --- */
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: #ffffff;
+            background-color: #00796b; /* Botão verde-azulado */
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 121, 107, 0.3);
+            margin-top: 30px; /* Adicionado para separar o botão das opções de pausa */
+            margin-bottom: 15px; /* Espaço entre o botão e a mensagem de status */
+        }
+        button:hover {
+            background-color: #004d40; /* Verde-azulado mais escuro no hover */
+            transform: translateY(-3px);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-message {
+            margin-top: 0; /* Ajustado, pois a margem já está no botão */
+            font-size: 1em;
+            color: #d32f2f; /* Vermelho para mensagens de status */
+            font-weight: bold;
+        }
+
+        /* --- CSS do Carrossel (original) --- */
+        .carousel-container {
+            position: relative;
+            margin: 10px;
+        }
+        .carousel {
+            position: relative;
+            width: 80px;
+            height: 50px;
+            overflow: hidden;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+        }
+        .carousel .items {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: calc(100% - 28px);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            transition: transform 0.2s ease-out;
+            padding-left: 22px;
+            box-sizing: border-box;
+            cursor: pointer;
+            z-index: 5;
+        }
+        .carousel .item {
+            min-width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            font-size: 24px;
+            box-sizing: border-box;
+            transform: translateX(-5px);
+        }
+        .carousel-buttons {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 1px solid #eee;
+            background-color: #f8f8f8;
+            border-radius: 0 5px 5px 0;
+            z-index: 10;
+        }
+        .carousel-button {
+            width: 100%;
+            height: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: #555;
+            user-select: none;
+            transition: background-color 0.1s ease-out, color 0.1s ease-out;
+        }
+        .carousel-button:hover {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .carousel-button:active {
+            background-color: #d0d0d0;
+            color: #000;
+        }
+        .carousel-button.up {
+            border-bottom: 1px solid #eee;
+        }
+
+        /* --- Overlay para o novo carrossel de seleção --- */
+        .selection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s;
+        }
+        .selection-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* --- Estilos para o novo carrossel de seleção dentro do overlay --- */
+        .selection-carousel {
+            position: relative;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 100px;
+            height: 250px; /* Para mostrar 5 itens (5 * 50px) */
+            max-height: 90vh; /* Margem das bordas da tela */
+            overflow: hidden; /* Esconde números fora da visão de 5 itens */
+        }
+        .selection-carousel .items {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            transition: transform 0.2s ease-out;
+            padding-top: 100px; /* Preenchimento para permitir transformações negativas para posicionamento inicial */
+            padding-bottom: 100px; /* Preenchimento para permitir rolagem além do final */
+        }
+        .selection-carousel .item {
+            min-width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centraliza números na lista de seleção */
+            font-size: 24px;
+            box-sizing: border-box;
+            cursor: pointer;
+            color: #555; /* Cor padrão para números na lista */
+            transition: color 0.1s ease-out, transform 0.1s ease-out, font-size 0.1s ease-out;
+        }
+        /* Efeito hover para os itens do carrossel de seleção */
+        .selection-carousel .item:hover {
+            font-size: 28px; /* Tamanho da fonte ligeiramente maior no hover */
+            transform: scale(1.1); /* Amplia ligeiramente o item */
+            color: #007bff; /* Opcional: Altera a cor no hover para melhor feedback */
+        }
+
+        /* --- Regras para o form-group que engloba tudo --- */
+        .form-group {
+            background-color: #f8fcfd; /* Um fundo levemente diferente para a seção */
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 25px; /* Espaçamento acima do grupo */
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05); /* Sombra interna suave */
+            border: 1px solid #e0e0e0;
+            /* Adicionado para dar espaço entre a seção de pausa e o botão, agora que o botão está dentro */
+            padding-bottom: 30px;
+        }
+
+        /* Título principal do formulário (Configurações do Alarme e Pausa) */
+        .form-group > .section-title {
+            font-size: 1.5em; /* Um pouco maior para o título principal */
+            color: #004d40; /* Uma cor mais escura, talvez */
+            margin-bottom: 30px; /* Mais espaço abaixo do título principal */
+            border-bottom: 3px solid #b2dfdb; /* Uma linha mais grossa para o principal */
+            padding-bottom: 12px;
+        }
+
+        /* Estilo para o input-group genérico (alarme principal e duração/fim da pausa) */
+        .input-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Espaço entre os carrosséis */
+            align-items: center; /* Alinha verticalmente os itens do flex container */
+            flex-wrap: wrap; /* Permite quebrar linha em telas menores */
+            margin-bottom: 25px; /* Espaço abaixo de cada grupo de carrosséis */
+        }
+
+        /* Labels específicos para os carrosséis (Definir Hora do Alarme, Duração, Fim da Pausa) */
+        .input-group > label {
+            display: block; /* Garante que o label ocupe sua própria linha */
+            width: 100%; /* Ocupa a largura total para forçar quebra de linha */
+            text-align: center;
+            margin-bottom: 15px; /* Mais espaço para separar do carrossel abaixo */
+            font-weight: bold; /* Deixa o texto do label mais evidente */
+            font-size: 1.1em;
+            color: #546e7a;
+        }
+
+        /* --- Regras para a Seção de Pausa (sub-section-pause-config) --- */
+        .sub-section-pause-config {
+            /* background-color: #f0f8f9; /* Opcional: para destacar a subseção */
+            padding-top: 15px; /* Espaço acima do conteúdo da subseção */
+            margin-top: 25px; /* Adiciona uma margem superior para separar da seção anterior */
+            border-top: 1px dashed #cfd8dc; /* Uma linha para separar visualmente as seções */
+            padding-bottom: 10px; /* Espaço abaixo da subseção antes do botão */
+        }
+
+        /* Subtítulo da seção de pausa */
+        .sub-section-pause-config .section-title.sub-title {
+            font-size: 1.2em; /* Menor que o título principal */
+            color: #00796b;
+            margin-top: 15px; /* Ajuste para não ter muito espaço do border-top */
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e0f7fa; /* Uma linha mais fina */
+            padding-bottom: 8px;
+        }
+
+        .radio-options {
+            display: flex;
+            justify-content: center; /* Centraliza as opções de rádio */
+            gap: 30px; /* Espaço entre as opções de rádio */
+            margin-bottom: 25px;
+            flex-wrap: wrap; /* Permite quebrar linha em telas menores */
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: 8px; /* Espaço entre o rádio e o label */
+            transform: scale(1.2); /* Aumenta um pouco o rádio para melhor visibilidade */
+            accent-color: #00796b; /* Cor do rádio quando selecionado */
+        }
+
+        .radio-option label {
+            font-size: 1.05em;
+            color: #546e7a;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="alarm-container">
+        <h1>Meu Despertador</h1>
+        <div id="current-time" class="time-display"></div>
+
+        <div class="form-group">
+            <div class="section-title">Configurações do Alarme e Pausa:</div>
+            <div class="input-group">
+                <label for="alarm-time-carousels">Definir Hora do Alarme:</label>
+                <div class="carousel-container">
+                    <div class="carousel" id="hours-carousel">
+                        <div class="items" id="hours-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="carousel-container">
+                    <div class="carousel" id="minutes-carousel">
+                        <div class="items" id="minutes-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sub-section-pause-config">
+                <div class="section-title sub-title">Configuração da pausa:</div>
+                <div class="radio-options">
+                    <div class="radio-option">
+                        <input type="radio" id="opcao-duracao" name="opcao-pausa" value="duracao" checked>
+                        <label for="opcao-duracao">Duração da pausa:</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="opcao-fim" name="opcao-pausa" value="fim">
+                        <label for="opcao-fim">Fim da pausa:</label>
+                    </div>
+                </div>
+
+                <div id="campos-duracao" class="input-group">
+                    <label>Duração (Hora:Minuto):</label>
+                    <div class="carousel-container">
+                        <div class="carousel" id="pause-duration-hours-carousel">
+                            <div class="items" id="pause-duration-hours-items"></div>
+                            <div class="carousel-buttons">
+                                <div class="carousel-button up" data-direction="up">︿</div>
+                                <div class="carousel-button down" data-direction="down">﹀</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-container">
+                        <div class="carousel" id="pause-duration-minutes-carousel">
+                            <div class="items" id="pause-duration-minutes-items"></div>
+                            <div class="carousel-buttons">
+                                <div class="carousel-button up" data-direction="up">︿</div>
+                                <div class="carousel-button down" data-direction="down">﹀</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="campos-fim" class="input-group" style="display: none;">
+                    <label>Fim da Pausa (Hora:Minuto):</label>
+                    <div class="carousel-container">
+                        <div class="carousel" id="pause-end-hours-carousel">
+                            <div class="items" id="pause-end-hours-items"></div>
+                            <div class="carousel-buttons">
+                                <div class="carousel-button up" data-direction="up">︿</div>
+                                <div class="carousel-button down" data-direction="down">﹀</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-container">
+                        <div class="carousel" id="pause-end-minutes-carousel">
+                            <div class="items" id="pause-end-minutes-items"></div>
+                            <div class="carousel-buttons">
+                                <div class="carousel-button up" data-direction="up">︿</div>
+                                <div class="carousel-button down" data-direction="down">﹀</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button id="setAlarmButton">Definir Alarme</button>
+            <p id="status-message" class="status-message"></p>
+        </div>
+    </div>
+
+    <div class="selection-overlay" id="hours-selection-overlay">
+        <div class="selection-carousel" id="hours-selection-carousel">
+            <div class="items" id="hours-selection-items"></div>
+        </div>
+    </div>
+
+    <div class="selection-overlay" id="minutes-selection-overlay">
+        <div class="selection-carousel" id="minutes-selection-carousel">
+            <div class="items" id="minutes-selection-items"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.statically.io/gh/zyon-king/pause/main/v0.3_time.js"></script>
+    <script src="https://cdn.statically.io/gh/zyon-king/pause/main/v0.3_clock.js"></script>
+
+    </body>
+</html>
