@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Despertador Moderno com Pausa</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #e0f7fa; /* Um azul claro suave */
+            margin: 0;
+            color: #333;
+            flex-direction: column; /* Para alinhar o container principal e os carrosséis */
+        }
+
+        .alarm-container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px; /* Espaço entre o container do alarme e os overlays de seleção */
+        }
+
+        h1 {
+            color: #00796b; /* Um verde-azulado mais escuro */
+            margin-bottom: 25px;
+            font-size: 2.2em;
+        }
+
+        .time-display {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #263238;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+        }
+
+        /* --- Regras para o Botão de Ação --- */
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: #ffffff;
+            background-color: #00796b; /* Botão verde-azulado */
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 121, 107, 0.3);
+            margin-top: 30px; /* Adicionado para separar o botão das opções de pausa */
+            margin-bottom: 15px; /* Espaço entre o botão e a mensagem de status */
+        }
+        button:hover {
+            background-color: #004d40; /* Verde-azulado mais escuro no hover */
+            transform: translateY(-3px);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-message {
+            margin-top: 0; /* Ajustado, pois a margem já está no botão */
+            font-size: 1em;
+            color: #d32f2f; /* Vermelho para mensagens de status */
+            font-weight: bold;
+        }
+
+        /* --- CSS do Carrossel (AJUSTADO PARA A NOVA LÓGICA E ESTILOS) --- */
+        .carousel-container {
+            position: relative;
+            margin: 10px;
+        }
+        .carousel {
+            position: relative;
+            width: 80px; /* Largura para o valor */
+            height: 50px;
+            overflow: hidden;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            box-sizing: border-box;
+        }
+        .carousel .items-container { /* Renomeado de .items para .items-container */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: calc(100% - 28px); /* Largura para acomodar os botões ao lado */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start; /* Alinha números à esquerda, como no exemplo */
+            justify-content: flex-start;
+            transition: transform 0.2s ease-out;
+            padding-left: 22px; /* Adiciona padding para centralizar visualmente */
+            box-sizing: border-box;
+            cursor: pointer;
+            z-index: 5;
+        }
+        .carousel .item { /* Agora é .item, não .carousel ul li */
+            min-width: 100%;
+            height: 50px; /* Altura de cada item */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* Alinha texto à esquerda */
+            font-size: 24px;
+            box-sizing: border-box;
+            color: #555;
+            transform: translateX(-5px); /* Ajuste fino para alinhamento com padding */
+        }
+        .carousel .item.selected { /* Classe para o item selecionado, se desejar */
+            color: #00796b;
+            font-weight: bold;
+            transform: scale(1.1) translateX(-5px); /* Mantém o ajuste de translateX */
+        }
+        /* O contêiner dos botões */
+        .carousel-buttons { /* ATENÇÃO: seletor para o div.carousel-buttons injetado */
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 1px solid #eee;
+            background-color: #f8f8f8;
+            border-radius: 0 5px 5px 0;
+            z-index: 10;
+        }
+        /* Os botões individuais */
+        .carousel-button {
+            width: 100%;
+            height: 49%; /* Ajustado para deixar um pequeno espaço com space-between */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: #555;
+            user-select: none;
+            transition: background-color 0.1s ease-out, color 0.1s ease-out;
+            border: none;
+            background: none;
+            padding: 0;
+        }
+        .carousel-button:hover {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .carousel-button:active {
+            transform: translateY(0);
+            box-shadow: none;
+            background-color: #d0d0d0;
+            color: #000;
+        }
+        .carousel-button.up {
+            border-bottom: 1px solid #eee; /* Separador para o botão de cima */
+        }
+        .carousel-button.down {
+            border-top: 1px solid #eee; /* Separador para o botão de baixo */
+        }
+
+
+        /* --- Overlay para o novo carrossel de seleção --- */
+        .selection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.7); /* Fundo mais escuro */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease-in-out;
+        }
+        .selection-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* --- Estilos para o novo carrossel de seleção dentro do overlay --- */
+        .selection-carousel {
+            position: relative; /* Para a linha de seleção fixa */
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            width: 100px; /* Largura do carrossel de seleção */
+            height: 250px; /* Para mostrar 5 itens (5 * 50px) */
+            max-height: 90vh; /* Margem das bordas da tela */
+            overflow: hidden; /* Esconde números fora da visão de 5 itens */
+        }
+        .selection-carousel .selection-items-container { /* Targeting the UL which will contain items */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            transition: transform 0.2s ease-out;
+            padding-top: 100px; /* Padding para permitir transformações negativas */
+            padding-bottom: 100px; /* Padding para permitir rolagem além do fim */
+        }
+        .selection-carousel .item { /* Targeting the LIs within the UL */
+            min-width: 100%;
+            height: 50px; /* Altura de cada item */
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centraliza números */
+            font-size: 24px;
+            box-sizing: border-box;
+            cursor: pointer;
+            color: #555;
+            transition: color 0.1s ease-out, transform 0.1s ease-out, font-size 0.1s ease-out;
+        }
+        /* Efeito hover para os itens do carrossel de seleção */
+        .selection-carousel .item:hover {
+            font-size: 28px; /* Slightly larger font size on hover */
+            transform: scale(1.1); /* Amplia ligeiramente o item */
+            color: #00796b; /* Optional: Change color on hover for better feedback */
+        }
+        .selection-carousel .item.selected-overlay-item { /* Para destacar o item selecionado no overlay */
+            background-color: #e0f7fa;
+            color: #00796b;
+            font-weight: bold;
+        }
+
+
+        /* --- Regras para o form-group que engloba tudo --- */
+        .form-group {
+            background-color: #f8fcfd; /* Um fundo levemente diferente para a seção */
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 25px; /* Espaçamento acima do grupo */
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05); /* Sombra interna suave */
+            border: 1px solid #e0e0e0;
+            padding-bottom: 30px;
+        }
+
+        .form-group > .section-title {
+            font-size: 1.5em;
+            color: #004d40;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #b2dfdb;
+            padding-bottom: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+
+        .input-group > label {
+            display: block;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #546e7a;
+        }
+
+        /* --- Regras para a Seção de Pausa (sub-section-pause-config) --- */
+        .sub-section-pause-config {
+            padding-top: 15px;
+            margin-top: 25px;
+            border-top: 1px dashed #cfd8dc;
+            padding-bottom: 10px;
+        }
+
+        .sub-section-pause-config .section-title.sub-title {
+            font-size: 1.2em;
+            color: #00796b;
+            margin-top: 15px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e0f7fa;
+            padding-bottom: 8px;
+        }
+
+        .radio-options {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+            accent-color: #00796b;
+        }
+
+        .radio-option label {
+            font-size: 1.05em;
+            color: #546e7a;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="alarm-container">
+        <h1>Meu Despertador</h1>
+        <div id="clock" class="time-display"></div>
+
+        <div class="form-group">
+            <div class="section-title">Configurações da Pausa:</div>
+            
+            <div id="initial-pause-time-setting" class="input-group">
+                <label>Hora de Início da Pausa:</label>
+                <div class="carousel-container">
+                    <div class="carousel" id="initial-pause-hour-carousel">
+                        <div class="items-container" id="initial-pause-hour-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-container">
+                    <div class="carousel" id="initial-pause-minute-carousel">
+                        <div class="items-container" id="initial-pause-minute-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sub-section-pause-config">
+                <div class="section-title sub-title">Como a pausa termina:</div>
+                <div class="radio-options">
+                    <div class="radio-option">
+                        <input type="radio" id="pause-mode-duration" name="pause-end-type" value="duration" checked>
+                        <label for="pause-mode-duration">Duração da pausa:</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="pause-mode-end-time" name="pause-end-type" value="end-time">
+                        <label for="pause-mode-end-time">Hora de término:</label>
+                    </div>
+                </div>
+
+                <div id="campos-duracao" class="input-group">
+                    <label>Definir Duração (Hora:Minuto):</label>
+                    <div class="carousel-container">
+                        <div class="carousel" id="pause-duration-hour">
+                            <div class="items-container" id="pause-duration-hour-items"></div>
+                            <div class="carousel-buttons">
+                                <div class="carousel-button up" data-direction="up">︿</div>
+                                <div class="carousel-button down" data-direction="down">﹀</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-container">
+                        <div class="carousel" id="pause-duration-minute">
+                            <div class="items-container" id="pause-duration-minute-items"></div>
+                            <div class="carousel-buttons">
+                                <div class="carousel-button up" data-direction="up">︿</div>
+                                <div class="carousel-button down" data-direction="down">﹀</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="campos-fim" class="input-group" style="display: none;">
+                    <label>Definir Hora de Término (Hora:Minuto):</label>
+                    <div class="carousel-container">
+                        <div class="carousel" id="pause-end-hour">
+                            <div class="items-container" id="pause-end-hour-items"></div>
+                            <div class="carousel-buttons">
+                                <div class="carousel-button up" data-direction="up">︿</div>
+                                <div class="carousel-button down" data-direction="down">﹀</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-container">
+                        <div class="carousel" id="pause-end-minute">
+                            <div class="items-container" id="pause-end-minute-items"></div>
+                            <div class="carousel-buttons">
+                                <div class="carousel-button up" data-direction="up">︿</div>
+                                <div class="carousel-button down" data-direction="down">﹀</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="setPauseButton">Definir Pausa</button>
+            <button id="stopPauseButton">Parar Pausa</button>
+            <p id="alarmDisplay" class="status-message"></p>
+        </div>
+    </div>
+
+    <div class="selection-overlay" id="initial-pause-hour-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="initial-pause-hour-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="initial-pause-minute-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="initial-pause-minute-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="pause-duration-hour-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="pause-duration-hour-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="pause-duration-minute-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="pause-duration-minute-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="pause-end-hour-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="pause-end-hour-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="pause-end-minute-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="pause-end-minute-selection-items"></div>
+        </div>
+    </div>
+
+    <script>
+class TimeCarousel {
+    constructor(options) {
+        this.mainCarouselElement = options.mainCarouselElement;
+        this.mainItemsContainer = options.mainItemsContainer;
+        this.upButton = options.upButton;
+        this.downButton = options.downButton;
+        this.selectionOverlay = options.selectionOverlay;
+        this.selectionItemsContainer = options.selectionItemsContainer;
+        this.currentValueRef = options.currentValueRef; // Object reference { value: N }
+        this.totalItems = options.totalItems;
+        this.itemHeight = 50;
+        this.itemsInView = 5;
+        this.bufferItems = Math.floor(this.itemsInView / 2);
+        this.numRepeats = 3; // For infinite scroll in overlay
+
+        this.isTransitioning = false; // Flag to prevent rapid jumps
+
+        this.populateMainCarousel();
+        this.updateMainCarouselPosition(this.currentValueRef.value);
+        this.setupMainCarouselScroll();
+        this.setupCarouselButtons();
+        this.setupSelectionCarouselInteraction();
+        this.populateSelectionCarousel(); // Initial population for overlays
+    }
+
+    // Populates the main visible carousel
+    populateMainCarousel() {
+        this.mainItemsContainer.innerHTML = '';
+        for (let i = 0; i < this.totalItems; i++) {
+            const value = i.toString().padStart(2, '0');
+            const item = document.createElement('div');
+            item.classList.add('item');
+            item.textContent = value;
+            this.mainItemsContainer.appendChild(item);
+        }
+    }
+
+    // Updates the visual position of the main carousel
+    updateMainCarouselPosition(currentIndex) {
+        this.mainItemsContainer.style.transform = `translateY(-${currentIndex * this.itemHeight}px)`;
+    }
+
+    // Handles mouse wheel scrolling for the main carousel
+    setupMainCarouselScroll() {
+        this.mainItemsContainer.addEventListener('wheel', (event) => {
+            event.preventDefault();
+            if (event.deltaY > 0) { // Scroll down
+                this.currentValueRef.value = (this.currentValueRef.value + 1) % this.totalItems;
+            } else { // Scroll up
+                this.currentValueRef.value = (this.currentValueRef.value - 1 + this.totalItems) % this.totalItems;
+            }
+            this.updateMainCarouselPosition(this.currentValueRef.value);
+        });
+    }
+
+    // Handles clicks on up/down buttons for the main carousel
+    setupCarouselButtons() {
+        if (this.upButton) {
+            this.upButton.addEventListener('click', () => {
+                this.currentValueRef.value = (this.currentValueRef.value - 1 + this.totalItems) % this.totalItems;
+                this.updateMainCarouselPosition(this.currentValueRef.value);
+            });
+        }
+        if (this.downButton) {
+            this.downButton.addEventListener('click', () => {
+                this.currentValueRef.value = (this.currentValueRef.value + 1) % this.totalItems;
+                this.updateMainCarouselPosition(this.currentValueRef.value);
+            });
+        }
+    }
+
+    // Populates the full selection overlay carousel
+    populateSelectionCarousel() {
+        this.selectionItemsContainer.innerHTML = '';
+        for (let r = 0; r < this.numRepeats; r++) {
+            for (let i = 0; i < this.totalItems; i++) {
+                const value = i.toString().padStart(2, '0');
+                const item = document.createElement('div');
+                item.classList.add('item');
+                item.textContent = value;
+                item.dataset.value = i; // Store actual value
+                item.dataset.fullIndex = (r * this.totalItems) + i; // Store full index in repeated list
+                this.selectionItemsContainer.appendChild(item);
+
+                item.addEventListener('click', (event) => {
+                    const selectedValue = parseInt(event.target.dataset.value);
+                    this.currentValueRef.value = selectedValue; // Update the reference
+                    this.updateMainCarouselPosition(this.currentValueRef.value); // Update main carousel
+                    this.selectionOverlay.classList.remove('active'); // Close the overlay
+                });
+            }
+        }
+    }
+
+    // Updates the visual position of the selection carousel for "infinite" scroll effect
+    updateSelectionCarouselPosition(currentLogicalIndex, isScrolling = false) {
+        const midBlockStartOffset = Math.floor(this.numRepeats / 2) * this.totalItems;
+        let targetFullIndex = midBlockStartOffset + currentLogicalIndex;
+
+        let targetTransformY = -(targetFullIndex * this.itemHeight) + (this.bufferItems * this.itemHeight);
+
+        // Apply transition based on interaction type
+        if (!isScrolling && this.isTransitioning) {
+            this.selectionItemsContainer.style.transition = `transform 0.2s ease-out`;
+        } else if (isScrolling && !this.isTransitioning) {
+            this.selectionItemsContainer.style.transition = 'none';
+        } else if (!isScrolling && !this.isTransitioning) {
+            this.selectionItemsContainer.style.transition = `transform 0.2s ease-out`;
+        }
+        this.selectionItemsContainer.style.transform = `translateY(${targetTransformY}px)`;
+
+        // Snap-back logic for "infinite" scroll feel
+        const scrolledOffset = Math.abs(parseFloat(this.selectionItemsContainer.style.transform.replace('translateY(', '').replace('px)', ''))) - (midBlockStartOffset * this.itemHeight) + (this.bufferItems * this.itemHeight);
+
+        if (scrolledOffset < (this.bufferItems * this.itemHeight) && currentLogicalIndex >= 0) {
+            const newTargetFullIndex = (this.numRepeats - 1) * this.totalItems + currentLogicalIndex;
+            const newTransformY = -(newTargetFullIndex * this.itemHeight) + (this.bufferItems * this.itemHeight);
+
+            this.selectionItemsContainer.style.transition = 'none';
+            requestAnimationFrame(() => {
+                this.selectionItemsContainer.style.transform = `translateY(${newTransformY}px)`;
+            });
+        } else if (scrolledOffset > ((this.totalItems - this.bufferItems) * this.itemHeight)) {
+            const newTargetFullIndex = (0 * this.totalItems) + currentLogicalIndex;
+            const newTransformY = -(newTargetFullIndex * this.itemHeight) + (this.bufferItems * this.itemHeight);
+            
+            this.selectionItemsContainer.style.transition = 'none';
+            requestAnimationFrame(() => {
+                this.selectionItemsContainer.style.transform = `translateY(${newTransformY}px)`;
+            });
+        }
+           // Re-enable transition if it was turned off for a snap, only if not already transitioning
+        if (!this.isTransitioning && !this.selectionItemsContainer.style.transition.includes('0.2s')) {
+             this.selectionItemsContainer.style.transition = `transform 0.2s ease-out`;
+        }
+    }
+    
+    // Handles opening the selection overlay and its scrolling
+    setupSelectionCarouselInteraction() {
+        this.mainItemsContainer.addEventListener('click', (event) => {
+            this.isTransitioning = true;
+            this.selectionItemsContainer.style.transition = `transform 0.2s ease-out`;
+            this.updateSelectionCarouselPosition(this.currentValueRef.value, false);
+            this.selectionOverlay.classList.add('active');
+            event.stopPropagation();
+            
+            // Mark selected item in overlay
+            const currentItemsInOverlay = this.selectionItemsContainer.querySelectorAll('.item');
+            currentItemsInOverlay.forEach(item => {
+                item.classList.remove('selected-overlay-item');
+                if (parseInt(item.dataset.value) === this.currentValueRef.value) {
+                    item.classList.add('selected-overlay-item');
+                }
+            });
+
+            setTimeout(() => {
+                this.isTransitioning = false;
+            }, 200); // Match CSS transition duration
+        });
+
+        this.selectionOverlay.addEventListener('click', (event) => {
+            if (event.target === this.selectionOverlay) {
+                this.selectionOverlay.classList.remove('active');
+            }
+        });
+
+        this.selectionOverlay.querySelector('.selection-carousel').addEventListener('wheel', (event) => {
+            event.preventDefault();
+            let newLogicalIndex = this.currentValueRef.value;
+
+            if (event.deltaY > 0) { // Scroll down
+                newLogicalIndex = (newLogicalIndex + 1) % this.totalItems;
+            } else { // Scroll up
+                newLogicalIndex = (newLogicalIndex - 1 + this.totalItems) % this.totalItems;
+            }
+            this.currentValueRef.value = newLogicalIndex;
+
+            // Update main carousel
+            this.updateMainCarouselPosition(this.currentValueRef.value);
+
+            // Update selection carousel position for the current logical index
+            this.selectionItemsContainer.style.transition = `transform 0.2s ease-out`;
+            this.updateSelectionCarouselPosition(newLogicalIndex, true);
+            
+            // Update selected item in overlay
+            const currentItemsInOverlay = this.selectionItemsContainer.querySelectorAll('.item');
+            currentItemsInOverlay.forEach(item => {
+                item.classList.remove('selected-overlay-item');
+                if (parseInt(item.dataset.value) === this.currentValueRef.value) {
+                    item.classList.add('selected-overlay-item');
+                }
+            });
+        });
+    }
+
+    // Method to enable/disable interaction
+    setEnabled(isEnabled) {
+        if (isEnabled) {
+            this.mainCarouselElement.style.pointerEvents = 'auto';
+            this.mainCarouselElement.style.opacity = '1';
+        } else {
+            this.mainCarouselElement.style.pointerEvents = 'none';
+            this.mainCarouselElement.style.opacity = '0.6'; // Dim it
+        }
+    }
+}
+
+// --- Variáveis de estado para os valores de tempo ---
+let initialPauseHour = 0;
+let initialPauseMinute = 0;
+let pauseDurationHour = 0;
+let pauseDurationMinute = 0;
+let pauseEndHour = 0;
+let pauseEndMinute = 0;
+
+// --- Variáveis de estado da Pausa ---
+let pauseActive = false;
+let pauseEndTypeSelected = 'duration'; // 'duration' ou 'end-time'
+let pauseStartTime = null; // Hora que a pausa começa
+let pauseEndTime = null; // Hora que a pausa termina
+
+// --- Display do relógio atual ---
+const alarmDisplay = document.getElementById('alarmDisplay');
+
+// Função para exibir notificações desktop
+function showDesktopNotification(title, body) {
+    if (!("Notification" in window)) {
+        alert("Este navegador não suporta notificações de desktop.");
+    } else if (Notification.permission === "granted") {
+        new Notification(title, { body: body });
+    } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(function (permission) {
+            if (permission === "granted") {
+                new Notification(title, { body: body });
+            }
+        });
+    }
+}
+
+// Função principal de atualização do relógio e verificação de pausas
+function updateCurrentTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+
+    // Lógica para notificar o início da pausa
+    if (pauseActive && pauseStartTime) {
+        const targetStartHour = String(pauseStartTime.hours).padStart(2, '0');
+        const targetStartMinute = String(pauseStartTime.minutes).padStart(2, '0');
+
+        if (hours === targetStartHour && minutes === targetStartMinute && seconds === '00') {
+            showDesktopNotification('Pausa Iniciada!', 'Sua pausa começou agora.');
+            // Limpa pauseStartTime para evitar notificações repetidas
+            pauseStartTime = null; 
+            // Neste ponto, a pausa está ATIVA e o sistema aguarda a hora de término.
+        }
+    }
+
+    // Lógica para notificar o fim da pausa
+    if (pauseActive && pauseEndTime) {
+        const targetEndHour = String(pauseEndTime.hours).padStart(2, '0');
+        const targetEndMinute = String(pauseEndTime.minutes).padStart(2, '0');
+
+        if (hours === targetEndHour && minutes === targetEndMinute && seconds === '00') {
+            showDesktopNotification('Pausa Terminada!', 'Sua pausa acabou.');
+            pauseActive = false; // Desativa a pausa
+            pauseStartTime = null; // Garante que tudo seja resetado
+            pauseEndTime = null;
+            alarmDisplay.textContent = 'Pausa terminada!';
+            alarmDisplay.style.color = '#d32f2f'; // Red for pause ended
+        }
+    }
+}
+setInterval(updateCurrentTime, 1000);
+updateCurrentTime(); // Chamada inicial para exibir o relógio imediatamente
+
+// --- Instâncias da Classe TimeCarousel ---
+
+// Referências para os valores dos carrosséis, passadas como objetos para serem mutáveis
+const initialPauseHourRef = { value: initialPauseHour };
+const initialPauseMinuteRef = { value: initialPauseMinute };
+const pauseDurationHourRef = { value: pauseDurationHour };
+const pauseDurationMinuteRef = { value: pauseDurationMinute };
+const pauseEndHourRef = { value: pauseEndHour };
+const pauseEndMinuteRef = { value: pauseEndMinute };
+
+
+const initialPauseHourCarousel = new TimeCarousel({
+    mainCarouselElement: document.getElementById('initial-pause-hour-carousel'),
+    mainItemsContainer: document.getElementById('initial-pause-hour-items'),
+    upButton: document.querySelector('#initial-pause-hour-carousel .carousel-button.up'),
+    downButton: document.querySelector('#initial-pause-hour-carousel .carousel-button.down'),
+    selectionOverlay: document.getElementById('initial-pause-hour-selection-overlay'),
+    selectionItemsContainer: document.getElementById('initial-pause-hour-selection-items'),
+    currentValueRef: initialPauseHourRef,
+    totalItems: 24 // 0-23 hours
+});
+
+const initialPauseMinuteCarousel = new TimeCarousel({
+    mainCarouselElement: document.getElementById('initial-pause-minute-carousel'),
+    mainItemsContainer: document.getElementById('initial-pause-minute-items'),
+    upButton: document.querySelector('#initial-pause-minute-carousel .carousel-button.up'),
+    downButton: document.querySelector('#initial-pause-minute-carousel .carousel-button.down'),
+    selectionOverlay: document.getElementById('initial-pause-minute-selection-overlay'),
+    selectionItemsContainer: document.getElementById('initial-pause-minute-selection-items'),
+    currentValueRef: initialPauseMinuteRef,
+    totalItems: 60 // 0-59 minutes
+});
+
+const pauseDurationHourCarousel = new TimeCarousel({
+    mainCarouselElement: document.getElementById('pause-duration-hour'),
+    mainItemsContainer: document.getElementById('pause-duration-hour-items'),
+    upButton: document.querySelector('#pause-duration-hour .carousel-button.up'),
+    downButton: document.querySelector('#pause-duration-hour .carousel-button.down'),
+    selectionOverlay: document.getElementById('pause-duration-hour-selection-overlay'),
+    selectionItemsContainer: document.getElementById('pause-duration-hour-selection-items'),
+    currentValueRef: pauseDurationHourRef,
+    totalItems: 24 // 0-23 hours for duration
+});
+
+const pauseDurationMinuteCarousel = new TimeCarousel({
+    mainCarouselElement: document.getElementById('pause-duration-minute'),
+    mainItemsContainer: document.getElementById('pause-duration-minute-items'),
+    upButton: document.querySelector('#pause-duration-minute .carousel-button.up'),
+    downButton: document.querySelector('#pause-duration-minute .carousel-button.down'),
+    selectionOverlay: document.getElementById('pause-duration-minute-selection-overlay'),
+    selectionItemsContainer: document.getElementById('pause-duration-minute-selection-items'),
+    currentValueRef: pauseDurationMinuteRef,
+    totalItems: 60 // 0-59 minutes for duration
+});
+
+const pauseEndHourCarousel = new TimeCarousel({
+    mainCarouselElement: document.getElementById('pause-end-hour'),
+    mainItemsContainer: document.getElementById('pause-end-hour-items'),
+    upButton: document.querySelector('#pause-end-hour .carousel-button.up'),
+    downButton: document.querySelector('#pause-end-hour .carousel-button.down'),
+    selectionOverlay: document.getElementById('pause-end-hour-selection-overlay'),
+    selectionItemsContainer: document.getElementById('pause-end-hour-selection-items'),
+    currentValueRef: pauseEndHourRef,
+    totalItems: 24 // 0-23 hours for end time
+});
+
+const pauseEndMinuteCarousel = new TimeCarousel({
+    mainCarouselElement: document.getElementById('pause-end-minute'),
+    mainItemsContainer: document.getElementById('pause-end-minute-items'),
+    upButton: document.querySelector('#pause-end-minute .carousel-button.up'),
+    downButton: document.querySelector('#pause-end-minute .carousel-button.down'),
+    selectionOverlay: document.getElementById('pause-end-minute-selection-overlay'),
+    selectionItemsContainer: document.getElementById('pause-end-minute-selection-items'),
+    currentValueRef: pauseEndMinuteRef,
+    totalItems: 60 // 0-59 minutes for end time
+});
+
+
+// --- Funções auxiliares do DOM para alternar campos de pausa ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Note a mudança para 'pause-end-type' nos rádios
+    const pauseEndTypeRadios = document.querySelectorAll('input[name="pause-end-type"]');
+    const camposDuracao = document.getElementById('campos-duracao');
+    const camposFim = document.getElementById('campos-fim');
+
+    function togglePauseEndFields() {
+        pauseEndTypeSelected = document.querySelector('input[name="pause-end-type"]:checked').value;
+
+        // Desativa/esconde todos os campos de duração/fim primeiro
+        pauseDurationHourCarousel.setEnabled(false);
+        pauseDurationMinuteCarousel.setEnabled(false);
+        pauseEndHourCarousel.setEnabled(false);
+        pauseEndMinuteCarousel.setEnabled(false);
+
+        camposDuracao.style.display = 'none';
+        camposFim.style.display = 'none';
+
+        if (pauseEndTypeSelected === 'duration') {
+            camposDuracao.style.display = 'flex';
+            pauseDurationHourCarousel.setEnabled(true);
+            pauseDurationMinuteCarousel.setEnabled(true);
+        } else { // 'end-time'
+            camposFim.style.display = 'flex';
+            pauseEndHourCarousel.setEnabled(true);
+            pauseEndMinuteCarousel.setEnabled(true);
+        }
+    }
+
+    // O carrossel de hora inicial da pausa sempre estará habilitado
+    initialPauseHourCarousel.setEnabled(true);
+    initialPauseMinuteCarousel.setEnabled(true);
+
+    pauseEndTypeRadios.forEach(radio => {
+        radio.addEventListener('change', togglePauseEndFields);
+    });
+
+    // Chama no carregamento para definir o estado inicial
+    togglePauseEndFields();
+
+    // Sincroniza o valor inicial dos carrosséis
+    initialPauseHourCarousel.updateMainCarouselPosition(initialPauseHourRef.value);
+    initialPauseMinuteCarousel.updateMainCarouselPosition(initialPauseMinuteRef.value);
+});
+
+// --- Lógica de Pausa ---
+document.getElementById('setPauseButton').addEventListener('click', () => {
+    // Reseta qualquer pausa anterior
+    pauseActive = false;
+    pauseStartTime = null;
+    pauseEndTime = null;
+
+    // Define a hora de início da pausa
+    const startHour = initialPauseHourRef.value;
+    const startMinute = initialPauseMinuteRef.value;
+    pauseStartTime = { hours: startHour, minutes: startMinute };
+
+    let message = '';
+
+    // Calcula a hora de término com base na opção selecionada
+    if (pauseEndTypeSelected === 'duration') {
+        const durationHours = pauseDurationHourRef.value;
+        const durationMinutes = pauseDurationMinuteRef.value;
+
+        let totalStartMinutes = (startHour * 60) + startMinute;
+        let totalEndMinutes = totalStartMinutes + (durationHours * 60) + durationMinutes;
+
+        const calculatedEndHours = Math.floor(totalEndMinutes / 60) % 24; // % 24 para lidar com viradas de dia
+        const calculatedEndMinutes = totalEndMinutes % 60;
+        
+        pauseEndTime = { hours: calculatedEndHours, minutes: calculatedEndMinutes };
+        message = `Pausa das ${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')} por ${String(durationHours).padStart(2, '0')}h ${String(durationMinutes).padStart(2, '0')}m (Termina às ${String(calculatedEndHours).padStart(2, '0')}:${String(calculatedEndMinutes).padStart(2, '0')})`;
+
+    } else { // pauseEndTypeSelected === 'end-time'
+        const endHour = pauseEndHourRef.value;
+        const endMinute = pauseEndMinuteRef.value;
+        
+        pauseEndTime = { hours: endHour, minutes: endMinute };
+        message = `Pausa das ${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')} até às ${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
+    }
+
+    pauseActive = true; // Ativa a pausa
+    alarmDisplay.textContent = message;
+    alarmDisplay.style.color = '#00796b'; // Green for success
+
+    showDesktopNotification('Pausa Definida', message);
+});
+
+document.getElementById('stopPauseButton').addEventListener('click', () => {
+    pauseActive = false;
+    pauseStartTime = null;
+    pauseEndTime = null;
+    alarmDisplay.textContent = 'Pausa desativada.';
+    alarmDisplay.style.color = '#d32f2f'; // Red for deactivated
+});    </script>
+</body>
+</html>
