@@ -75,3 +75,52 @@ Pomodorus is designed to be a simple, single-page application. Feel free to fork
 ## License
 
 [Choose a license, e.g., MIT License. If you don't add one, GitHub will usually default to none, but it's good practice to specify.]
+
+https://github.com/w3teal/awesome-ringtone/tree/main
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tocador de Ringtone</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: sans-serif;
+            color: #333;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #555;
+            margin-bottom: 20px;
+        }
+        audio {
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tocando: Titanium Ringtone</h1>
+        <audio controls autoplay>
+            <source src="https://raw.githubusercontent.com/w3teal/awesome-ringtone/main/Google%20Pixel/2016%20-%20Titanium%20-%20Android%20Material%20Ringtone.mp3" type="audio/mpeg">
+            Seu navegador não suporta o elemento de áudio.
+        </audio>
+        <p>Aproveite o som do ringtone "Titanium"!</p>
+    </div>
+</body>
+</html>
