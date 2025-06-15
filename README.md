@@ -2,7 +2,30 @@
 
 Pomodorus is a sleek, web-based alarm clock that goes beyond simple wake-up calls. It allows you to define specific "pause" periods throughout your day, either by duration or end time, making it ideal for managing work/break intervals, mindful interruptions, or even just scheduling your daily routines.
 
-## Features
+## 🚀 Welcome to: My Pomodorus Features
+
+This system is designed to help you effectively manage your breaks during your focus sessions.
+
+Here are the main features you can use:
+
+* **⏰ Current Clock Display:** Keep track of the exact time in real-time on the main display.
+* **➕ Configure New Break:**
+    * Set the **start time** for your break using interactive hour and minute carousels.
+    * Choose how to define the end of your break:
+        * **By Duration:** Specify the length of the break in hours and minutes.
+        * **By End Time:** Set a specific time for the break to conclude.
+    * **Daily Repetition:** Check this option for the break to repeat every day (requires Gist configuration).
+* **📋 Active Breaks Management:**
+    * View a clear list of all your scheduled breaks.
+    * Each break displays its start time, calculated duration, and end time, along with an indicator if it's a daily break.
+    * **Remove Breaks:** Delete individual breaks from your list at any time.
+* **🔔 Break Notifications:** Receive convenient desktop notifications when your breaks start and end.
+* **💾 Load/Save Breaks (GitHub Gist):**
+    * **Integrated Configuration:** Store and load your **Personal Access Token (PAT)** and **Gist ID** directly within the application.
+    * **Synchronization:** Save your daily breaks to a private GitHub Gist to access them across different sessions or devices.
+    * **Retrieval:** Load previously saved breaks from your Gist to restore your schedule.
+
+## Features Resume
 
 * **Real-time Clock Display:** Always see the current time at a glance.
 * **Intuitive Pause Configuration:** Set new pauses through a user-friendly, multi-step modal interface.
