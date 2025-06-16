@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodorus</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: auto; /* ou remova esta linha */
+            padding-top: 2vh; /* Ajuste este valor confor */
+            background-color: #e0f7fa; /* Um azul claro suave */
+            margin: 0;
+            color: #333;
+            flex-direction: column; /* Para alinhar o container principal e os carrosséis */
+        }
+
+        .alarm-container {
+            background-color: #ffffff;
+            padding: 40px;
+            padding-top: 00px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px; /* Espaço entre o container do alarme e os overlays de seleção */
+        }
+
+        h1 {
+            color: #00796b; /* Um verde-azulado mais escuro */
+            margin-bottom: 25px;
+            font-size: 2.2em;
+        }
+
+        .time-display {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #263238;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+        }
+
+        /* --- Regras para o Botão de Ação --- */
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: #ffffff;
+            background-color: #00796b; /* Botão verde-azulado */
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 121, 107, 0.3);
+            margin-top: 30px; /* Adicionado para separar o botão das opções de pausa */
+            margin-bottom: 15px; /* Espaço entre o botão e a mensagem de status */
+        }
+        button:hover {
+            background-color: #004d40; /* Verde-azulado mais escuro no hover */
+            transform: translateY(-3px);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-message {
+            margin-top: 0; /* Ajustado, pois a margem já está no botão */
+            font-size: 1em;
+            color: #d32f2f; /* Vermelho para mensagens de status */
+            font-weight: bold;
+        }
+
+        /* --- CSS do Carrossel --- */
+        .carousel-container {
+            position: relative;
+            margin: 10px;
+        }
+        .carousel {
+            position: relative;
+            width: 80px; /* Largura para o valor */
+            height: 50px;
+            overflow: hidden;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            box-sizing: border-box;
+        }
+        .carousel .items-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: calc(100% - 28px);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            transition: transform 0.2s ease-out;
+            padding-left: 22px;
+            box-sizing: border-box;
+            cursor: pointer;
+            z-index: 5;
+        }
+        .carousel .item {
+            min-width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            font-size: 24px;
+            box-sizing: border-box;
+            color: #555;
+            transform: translateX(-5px);
+        }
+        .carousel .item.selected {
+            color: #00796b;
+            font-weight: bold;
+            transform: scale(1.1) translateX(-5px);
+        }
+        .carousel-buttons {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 1px solid #eee;
+            background-color: #f8f8f8;
+            border-radius: 0 5px 5px 0;
+            z-index: 10;
+        }
+        .carousel-button {
+            width: 100%;
+            height: 49%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: #555;
+            user-select: none;
+            transition: background-color 0.1s ease-out, color 0.1s ease-out;
+            border: none;
+            background: none;
+            padding: 0;
+        }
+        .carousel-button:hover {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .carousel-button:active {
+            transform: translateY(0);
+            box-shadow: none;
+            background-color: #d0d0d0;
+            color: #000;
+        }
+        .carousel-button.up {
+            border-bottom: 1px solid #eee;
+        }
+        .carousel-button.down {
+            border-top: 1px solid #eee;
+        }
+
+        /* --- Overlay para seleções --- */
+        .selection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 151;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease-in-out;
+        }
+        .selection-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .selection-carousel {
+            position: relative;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            width: 100px;
+            height: 90vh;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        .selection-carousel .selection-items-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            transition: transform 0.2s ease-out;
+            padding-top: 100px;
+            padding-bottom: 100px;
+        }
+        .selection-carousel .item {
+            min-width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-sizing: border-box;
+            cursor: pointer;
+            color: #555;
+            transition: color 0.1s ease-out, transform 0.1s ease-out, font-size 0.1s ease-out;
+        }
+        .selection-carousel .item:hover {
+            font-size: 28px;
+            transform: scale(1.1);
+            color: #00796b;
+        }
+        .selection-carousel .item.selected-overlay-item {
+            background-color: #e0f7fa;
+            color: #00796b;
+            font-weight: bold;
+        }
+
+        /* --- Regras para o form-group principal (simplificado) --- */
+        .form-group {
+            background-color: #f8fcfd;
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 25px;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e0e0e0;
+            padding-bottom: 30px;
+        }
+
+        .form-group > .section-title {
+            font-size: 1.5em;
+            color: #004d40;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #b2dfdb;
+            padding-bottom: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+
+        .input-group > label {
+            display: block;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #546e7a;
+        }
+
+        /* --- Regras para os novos Modais de Configuração de Pausa --- */
+        .config-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 150; /* Acima dos carrosséis de seleção, abaixo do Gist modal */
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease-in-out;
+        }
+        .config-modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .config-modal-content {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 400px; /* Largura similar ao alarm-container */
+            text-align: center;
+        }
+        .config-modal-content h3 {
+            color: #00796b;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .config-modal-content .modal-buttons {
+            display: flex;
+            justify-content: space-around; /* Espaçamento entre os botões */
+            gap: 10px;
+            margin-top: 30px;
+        }
+        .config-modal-content .modal-buttons button {
+            margin-top: 0;
+            padding: 10px 20px;
+            font-size: 1em;
+        }
+        .config-modal-content .modal-buttons .nav-button { /* Botões Avançar/Voltar */
+            background-color: #42a5f5; /* Um azul mais claro */
+        }
+        .config-modal-content .modal-buttons .nav-button:hover {
+            background-color: #1976d2;
+        }
+        .config-modal-content .modal-buttons .define-button { /* Botão Definir Pausa final */
+            background-color: #00796b;
+        }
+
+        /* --- Estilos para os campos de rádio e checkbox dentro do modal --- */
+        .modal-radio-options, .modal-checkbox-option {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .modal-radio-options .radio-option, .modal-checkbox-option .radio-option {
+             /* Reutiliza estilos de .radio-option */
+             margin-bottom: 0; /* Remove margem extra */
+        }
+        .modal-input-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+        .modal-input-group > label {
+            display: block;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #546e7a;
+        }
+        /* Ajuste para carrosséis dentro de modais */
+        .config-modal-content .carousel-container {
+            margin: 5px; /* Espaçamento menor dentro do modal */
+        }
+
+
+        /* --- Seção de Pausas Ativas --- */
+        #active-pauses-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f0fcfc;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+        }
+
+        #active-pauses-section .section-title {
+            font-size: 1.5em;
+            color: #004d40;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #b2dfdb;
+            padding-bottom: 10px;
+        }
+
+        #pauses-list {
+            list-style: none;
+            padding: 0;
+            max-height: 200px; /* Para rolagem se houver muitas pausas */
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            background-color: #fff;
+        }
+
+        #pauses-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.95em;
+            color: #444;
+        }
+
+        #pauses-list li:last-child {
+            border-bottom: none;
+        }
+
+        #pauses-list li span {
+            flex-grow: 1;
+            text-align: left;
+        }
+
+        #pauses-list li .remove-pause-button {
+            background-color: #ef5350; /* Vermelho suave */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: background-color 0.2s ease;
+        }
+
+        #pauses-list li .remove-pause-button:hover {
+            background-color: #d32f2f; /* Vermelho mais escuro */
+        }
+        
+        /* --- Modal para Gist Config --- */
+        .gist-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200; /* Acima de todos os outros modais */
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease-in-out;
+        }
+        .gist-modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .gist-modal-content {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 450px;
+            text-align: left;
+        }
+        .gist-modal-content h3 {
+            color: #00796b;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .gist-modal-content label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 0.95em;
+        }
+        .gist-modal-content input[type="text"],
+        .gist-modal-content input[type="password"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        .gist-modal-content .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .gist-modal-content .modal-buttons button {
+            margin-top: 0;
+            padding: 10px 20px;
+            font-size: 1em;
+        }
+        .gist-modal-content .modal-buttons .cancel-button {
+            background-color: #90a4ae;
+        }
+        .gist-modal-content .modal-buttons .cancel-button:hover {
+            background-color: #607d8b;
+        }
+    </style>
+</head>
+<body>
+    <div class="alarm-container">
+        <h1>My Pomodorus</h1>
+        <div id="clock" class="time-display"></div>
+
+        <div class="form-group">
+            <div class="section-title">Ações de Pausa:</div>
+            
+            <button id="openPauseConfigModalButton">Configurar Nova Pausa</button>
+            <p id="alarmDisplay" class="status-message"></p>
+        </div>
+
+        <button id="manageGistButton" style="margin-top: 20px; background-color: #1976d2;">Carregar/Salvar Pausas (Gist)</button>
+
+        <div id="active-pauses-section">
+            <div class="section-title">Pausas Ativas:</div>
+            <ul id="pauses-list">
+                </ul>
+        </div>
+    </div>
+
+    <div class="selection-overlay" id="initial-pause-hour-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="initial-pause-hour-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="initial-pause-minute-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="initial-pause-minute-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="pause-duration-hour-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="pause-duration-hour-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="pause-duration-minute-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="pause-duration-minute-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="pause-end-hour-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="pause-end-hour-selection-items"></div>
+        </div>
+    </div>
+    <div class="selection-overlay" id="pause-end-minute-selection-overlay">
+        <div class="selection-carousel">
+            <div class="selection-items-container" id="pause-end-minute-selection-items"></div>
+        </div>
+    </div>
+
+    <div class="config-modal-overlay" id="modal-initial-time">
+        <div class="config-modal-content">
+            <h3>Definir Hora de Início da Pausa:</h3>
+            <div class="modal-input-group">
+                <div class="carousel-container">
+                    <div class="carousel" id="modal-initial-pause-hour-carousel">
+                        <div class="items-container" id="modal-initial-pause-hour-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-container">
+                    <div class="carousel" id="modal-initial-pause-minute-carousel">
+                        <div class="items-container" id="modal-initial-pause-minute-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button id="modal-initial-time-next" class="nav-button">Avançar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="config-modal-overlay" id="modal-pause-details">
+        <div class="config-modal-content">
+            <h3>Detalhes da Pausa:</h3>
+            
+            <div class="modal-radio-options">
+                <div class="radio-option">
+                    <input type="radio" id="modal-pause-mode-duration" name="modal-pause-end-type" value="duration" checked>
+                    <label for="modal-pause-mode-duration">Duração da pausa:</label>
+                </div>
+                <div class="radio-option">
+                    <input type="radio" id="modal-pause-mode-end-time" name="modal-pause-end-type" value="end-time">
+                    <label for="modal-pause-mode-end-time">Hora de término:</label>
+                </div>
+            </div>
+
+            <div id="modal-campos-duracao" class="modal-input-group">
+                <label>Duração (Hora:Minuto):</label>
+                <div class="carousel-container">
+                    <div class="carousel" id="modal-pause-duration-hour">
+                        <div class="items-container" id="modal-pause-duration-hour-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-container">
+                    <div class="carousel" id="modal-pause-duration-minute">
+                        <div class="items-container" id="modal-pause-duration-minute-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="modal-campos-fim" class="modal-input-group" style="display: none;">
+                <label>Hora de Término (Hora:Minuto):</label>
+                <div class="carousel-container">
+                    <div class="carousel" id="modal-pause-end-hour">
+                        <div class="items-container" id="modal-pause-end-hour-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-container">
+                    <div class="carousel" id="modal-pause-end-minute">
+                        <div class="items-container" id="modal-pause-end-minute-items"></div>
+                        <div class="carousel-buttons">
+                            <div class="carousel-button up" data-direction="up">︿</div>
+                            <div class="carousel-button down" data-direction="down">﹀</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-checkbox-option" style="margin-top: 20px;">
+                <input type="checkbox" id="modal-daily-repeat-checkbox">
+                <label for="modal-daily-repeat-checkbox">Repetição Diária (requer Gist)</label>
+            </div>
+
+            <div class="modal-buttons">
+                <button id="modal-details-back" class="nav-button">Voltar</button>
+                <button id="modal-details-define" class="define-button">Definir Pausa</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="gist-modal-overlay" id="gist-config-modal">
+        <div class="gist-modal-content">
+            <h3>Configurar Gist do GitHub</h3>
+            <p>Para carregar ou salvar pausas com repetição diária, forneça seu Token de Acesso Pessoal (PAT) do GitHub e o ID do Gist.</p>
+            <label for="gist-token">Token de Acesso Pessoal (PAT):</label>
+            <input type="password" id="gist-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+            <label for="gist-id">ID do Gist:</label>
+            <input type="text" id="gist-id" placeholder="Ex: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6">
+            <div class="modal-buttons">
+                <button id="cancelGistConfig" class="cancel-button">Cancelar</button>
+                <button id="saveGistConfig">Salvar e Carregar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    
+    // --- COMEÇO DO BLOCO DE ACRÉSCIMO/SUBSTITUIÇÃO COMPLETA DO SCRIPT ---
+
+        // ==========================================================
+        // VARIÁVEIS GLOBAIS E INICIALIZAÇÕES
+        // ==========================================================
+        let activePauses = []; // Array para armazenar todos os objetos de pausa
+        let hasDailyResetOccurred = false; // Flag para controlar o reset de pausas diárias
+        const notificationSound = new Audio('notification.mp3'); // Certifique-se de ter um arquivo notification.mp3
+        const alarmDisplay = document.getElementById('alarmDisplay'); // Elemento para mensagens de status
+
+        // Variáveis temporárias para a configuração da nova pausa via modal
+        let tempPauseStartHour = 0;
+        let tempPauseStartMinute = 0;
+        let tempPauseDurationHour = 0;
+        let tempPauseDurationMinute = 0;
+        let tempPauseEndHour = 0;
+        let tempPauseEndMinute = 0;
+        let tempPauseIsDailyRepeat = false;
+
+        // ==========================================================
+        // FUNÇÕES DE UTILIDADE
+        // ==========================================================
+
+        // Função para gerar IDs únicos (simplificada)
+        function generateUniqueId() {
+            return `pause-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        }
+
+        // Função para mostrar mensagens de status
+        function showStatusMessage(message, isError = false) {
+            alarmDisplay.textContent = message;
+            alarmDisplay.style.color = isError ? '#d32f2f' : '#00796b';
+        }
+
+        // ==========================================================
+        // GESTÃO DE PAUSAS (Adicionar, Remover, Atualizar UI)
+        // ==========================================================
+
+        function addPause(startH, startM, endH, endM, dailyRepeat) {
+            const newPause = {
+                id: generateUniqueId(),
+                startHour: startH,
+                startMinute: startM,
+                endHour: endH,
+                endMinute: endM,
+                isDailyRepeat: dailyRepeat,
+                triggeredStartForToday: false,
+                triggeredEndForToday: false,
+                isActive: true // Pausa sempre começa como ativa
+            };
+            activePauses.push(newPause);
+            updatePausesListUI(); // Atualiza a lista na UI
+            showStatusMessage('Nova pausa configurada!', false);
+            console.log('Pausa adicionada:', newPause);
+        }
+
+        function removePause(idToRemove) {
+            activePauses = activePauses.filter(pause => pause.id !== idToRemove);
+            updatePausesListUI(); // Atualiza a lista na UI
+            showStatusMessage('Pausa removida.', false);
+            console.log(`Pausa com ID ${idToRemove} removida.`);
+        }
+
+        function updatePausesListUI() {
+            const pausesListUl = document.getElementById('pauses-list');
+            pausesListUl.innerHTML = ''; // Limpa a lista atual
+
+            if (activePauses.length === 0) {
+                pausesListUl.innerHTML = '<li>Nenhuma pausa ativa configurada.</li>';
+                return;
+            }
+
+            activePauses.forEach(pause => {
+                const listItem = document.createElement('li');
+                const start = `${pause.startHour.toString().padStart(2, '0')}:${pause.startMinute.toString().padStart(2, '0')}`;
+                const end = `${pause.endHour.toString().padStart(2, '0')}:${pause.endMinute.toString().padStart(2, '0')}`;
+                const type = pause.isDailyRepeat ? 'Diária' : 'Única';
+
+                listItem.innerHTML = `
+                    <span>${start} - ${end} (${type})</span>
+                    <button class="remove-pause-button" data-id="${pause.id}">Remover</button>
+                `;
+                pausesListUl.appendChild(listItem);
+            });
+
+            // Adiciona event listeners aos novos botões de remover
+            pausesListUl.querySelectorAll('.remove-pause-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const id = event.target.dataset.id;
+                    removePause(id);
+                });
+            });
+        }
+
+
+        // ==========================================================
+        // MONITORES DO RELÓGIO E DISPARO DE NOTIFICAÇÕES
+        // ==========================================================
+
+        function playNotificationSound() {
+            if (notificationSound) {
+                notificationSound.play().catch(e => console.error("Erro ao tocar o som:", e));
+            }
+        }
+
+        function triggerNotification(message) {
+            showStatusMessage(message, false); // Exibe mensagem na tela
+            playNotificationSound(); // Toca o som
+            if (Notification.permission === "granted") {
+                new Notification("Pomodorus", { body: message });
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification("Pomodorus", { body: message });
+                    }
+                });
+            }
+        }
+
+        function updateClockAndCheckPauses() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentSecond = now.getSeconds();
+
+            // Atualiza o display do relógio principal
+            const clockDisplay = document.getElementById('clock');
+            clockDisplay.textContent = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}:${String(currentSecond).padStart(2, '0')}`;
+
+            // Lógica de Reset Diário para Pausas Repetitivas (executa apenas uma vez às 00:00)
+            if (currentHour === 0 && currentMinute === 0 && !hasDailyResetOccurred) {
+                activePauses.forEach(pause => {
+                    if (pause.isDailyRepeat) {
+                        pause.triggeredStartForToday = false;
+                        pause.triggeredEndForToday = false;
+                    }
+                });
+                hasDailyResetOccurred = true; // Marca que o reset ocorreu para hoje
+                console.log("Pausas diárias resetadas para o novo dia.");
+            } else if (currentHour !== 0 || currentMinute !== 0) {
+                // Reinicia a flag de reset diário assim que o minuto muda de 00:00
+                hasDailyResetOccurred = false;
+            }
+
+            // Iterar e verificar cada pausa apenas no primeiro segundo do minuto para evitar spam de notificação
+            if (currentSecond === 0) { 
+                activePauses.forEach(pause => {
+                    // Verificar início da pausa
+                    if (currentHour === pause.startHour && currentMinute === pause.startMinute) {
+                        if (pause.isDailyRepeat && !pause.triggeredStartForToday) {
+                            triggerNotification(`Hora da Pausa Diária! (${pause.startHour.toString().padStart(2, '0')}:${pause.startMinute.toString().padStart(2, '0')})`);
+                            pause.triggeredStartForToday = true;
+                        } else if (!pause.isDailyRepeat && pause.isActive) {
+                            triggerNotification(`Pausa Única Iniciada! (${pause.startHour.toString().padStart(2, '0')}:${pause.startMinute.toString().padStart(2, '0')})`);
+                            // Para pausas únicas, não precisamos de triggeredStartForToday, a isActive já controla.
+                        }
+                    }
+
+                    // Verificar fim da pausa
+                    if (currentHour === pause.endHour && currentMinute === pause.endMinute) {
+                        if (pause.isDailyRepeat && !pause.triggeredEndForToday) {
+                            triggerNotification(`Fim da Pausa Diária! De volta ao trabalho. (${pause.endHour.toString().padStart(2, '0')}:${pause.endMinute.toString().padStart(2, '0')})`);
+                            pause.triggeredEndForToday = true;
+                        } else if (!pause.isDailyRepeat && pause.isActive) {
+                            triggerNotification(`Fim da Pausa Única! De volta ao trabalho. (${pause.endHour.toString().padStart(2, '0')}:${pause.endMinute.toString().padStart(2, '0')})`);
+                            pause.isActive = false; // Desativa a pausa única após o término
+                        }
+                    }
+                });
+
+                // Limpar pausas únicas inativas (opcional, pode ser feito com menos frequência)
+                // Isso remove pausas únicas da lista depois que elas terminaram
+                const initialLength = activePauses.length;
+                activePauses = activePauses.filter(pause => pause.isDailyRepeat || pause.isActive);
+                if (activePauses.length !== initialLength) {
+                    updatePausesListUI(); // Se houver remoção, atualiza a UI
+                }
+            }
+        }
+
+        setInterval(updateClockAndCheckPauses, 1000); // Roda a cada segundo
+
+        // ==========================================================
+        // CLASSES E INICIALIZAÇÃO DOS CARROUSSELS
+        // ==========================================================
+
+        class TimeCarousel {
+            constructor(options) {
+                this.mainCarouselElement = options.mainCarouselElement;
+                this.mainItemsContainer = options.mainItemsContainer;
+                this.upButton = options.upButton;
+                this.downButton = options.downButton;
+                this.selectionOverlay = options.selectionOverlay;
+                this.selectionItemsContainer = options.selectionItemsContainer;
+                this.currentValueRef = options.currentValueRef; // Object reference { value: N }
+                this.totalItems = options.totalItems;
+                this.itemHeight = 50;
+                this.itemsInView = 5;
+                this.bufferItems = Math.floor(this.itemsInView / 2);
+                this.numRepeats = 3; // For infinite scroll in overlay
+
+                this.isTransitioning = false; // Flag to prevent rapid jumps
+
+                this.populateMainCarousel();
+                this.updateMainCarouselPosition(this.currentValueRef.value);
+                this.setupMainCarouselScroll();
+                this.setupCarouselButtons();
+                this.setupSelectionCarouselInteraction();
+                this.populateSelectionCarousel(); // Initial population for overlays
+            }
+
+            populateMainCarousel() {
+                this.mainItemsContainer.innerHTML = '';
+                for (let i = 0; i < this.totalItems; i++) {
+                    const value = i.toString().padStart(2, '0');
+                    const item = document.createElement('div');
+                    item.classList.add('item');
+                    item.textContent = value;
+                    this.mainItemsContainer.appendChild(item);
+                }
+            }
+
+            updateMainCarouselPosition(currentIndex) {
+                this.mainItemsContainer.style.transform = `translateY(-${currentIndex * this.itemHeight}px)`;
+            }
+
+            setupMainCarouselScroll() {
+                this.mainItemsContainer.addEventListener('wheel', (event) => {
+                    event.preventDefault();
+                    if (event.deltaY > 0) { // Scroll down
+                        this.currentValueRef.value = (this.currentValueRef.value + 1) % this.totalItems;
+                    } else { // Scroll up
+                        this.currentValueRef.value = (this.currentValueRef.value - 1 + this.totalItems) % this.totalItems;
+                    }
+                    this.updateMainCarouselPosition(this.currentValueRef.value);
+                });
+            }
+
+            setupCarouselButtons() {
+                if (this.upButton) {
+                    this.upButton.addEventListener('click', () => {
+                        this.currentValueRef.value = (this.currentValueRef.value - 1 + this.totalItems) % this.totalItems;
+                        this.updateMainCarouselPosition(this.currentValueRef.value);
+                    });
+                }
+                if (this.downButton) {
+                    this.downButton.addEventListener('click', () => {
+                        this.currentValueRef.value = (this.currentValueRef.value + 1) % this.totalItems;
+                        this.updateMainCarouselPosition(this.currentValueRef.value);
+                    });
+                }
+            }
+
+            populateSelectionCarousel() {
+                this.selectionItemsContainer.innerHTML = '';
+                for (let r = 0; r < this.numRepeats; r++) {
+                    for (let i = 0; i < this.totalItems; i++) {
+                        const value = i.toString().padStart(2, '0');
+                        const item = document.createElement('div');
+                        item.classList.add('item');
+                        item.textContent = value;
+                        item.dataset.value = i; // Store actual value
+                        item.dataset.fullIndex = (r * this.totalItems) + i; // Store full index in repeated list
+                        this.selectionItemsContainer.appendChild(item);
+
+                        item.addEventListener('click', (event) => {
+                            const selectedValue = parseInt(event.target.dataset.value);
+                            this.currentValueRef.value = selectedValue; // Update the reference
+                            this.updateMainCarouselPosition(this.currentValueRef.value); // Update main carousel
+                            this.selectionOverlay.classList.remove('active'); // Close the overlay
+                            // Atualiza os carrosséis no modal após a seleção no overlay
+                            this.updateModalCarouselFromOverlay();
+                        });
+                    }
+                }
+            }
+
+            // Novo método para sincronizar o carrossel do modal com o valor selecionado no overlay
+            updateModalCarouselFromOverlay() {
+                if (this.mainItemsContainer) {
+                    this.populateMainCarousel(); // Recria os itens para garantir a classe 'selected'
+                    const items = this.mainItemsContainer.children;
+                    for (let i = 0; i < items.length; i++) {
+                        items[i].classList.remove('selected');
+                        if (parseInt(items[i].textContent) === this.currentValueRef.value) {
+                            items[i].classList.add('selected');
+                        }
+                    }
+                    this.updateMainCarouselPosition(this.currentValueRef.value);
+                }
+            }
+
+            setupSelectionCarouselInteraction() {
+                // Abre o overlay quando o carrossel principal é clicado
+                this.mainItemsContainer.parentElement.addEventListener('click', () => {
+                    this.selectionOverlay.classList.add('active');
+                    this.scrollToSelectedInOverlay();
+                });
+
+                // Permite fechar o overlay clicando fora do carrossel de seleção
+                this.selectionOverlay.addEventListener('click', (event) => {
+                    if (event.target === this.selectionOverlay) {
+                        this.selectionOverlay.classList.remove('active');
+                    }
+                });
+
+                // Adiciona rolagem suave ao overlay
+                this.selectionItemsContainer.addEventListener('wheel', (event) => {
+                    event.preventDefault();
+                    this.selectionItemsContainer.scrollBy({
+                        top: event.deltaY,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+
+            scrollToSelectedInOverlay() {
+                if (this.selectionOverlay.classList.contains('active')) {
+                    const selectedItemIndex = this.currentValueRef.value + this.totalItems; // Go to second repeat for better visual
+                    const targetScroll = selectedItemIndex * this.itemHeight - (this.selectionOverlay.clientHeight / 2) + (this.itemHeight / 2);
+                    this.selectionItemsContainer.scrollTo({
+                        top: targetScroll,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        }
+
+        // ==========================================================
+        // CONFIGURAÇÃO DOS CARROUSSELS E MODAIS
+        // ==========================================================
+
+        // Inicialização dos valores de referência para os carrosséis
+        const initialPauseHourRef = { value: 0 };
+        const initialPauseMinuteRef = { value: 0 };
+        const pauseDurationHourRef = { value: 0 };
+        const pauseDurationMinuteRef = { value: 0 };
+        const pauseEndHourRef = { value: 0 };
+        const pauseEndMinuteRef = { value: 0 };
+
+        // Carrosséis do modal de hora de início
+        const modalInitialPauseHourCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-initial-pause-hour-carousel'),
+            mainItemsContainer: document.getElementById('modal-initial-pause-hour-items'),
+            upButton: document.querySelector('#modal-initial-pause-hour-carousel .carousel-button.up'),
+            downButton: document.querySelector('#modal-initial-pause-hour-carousel .carousel-button.down'),
+            selectionOverlay: document.getElementById('initial-pause-hour-selection-overlay'),
+            selectionItemsContainer: document.getElementById('initial-pause-hour-selection-items'),
+            currentValueRef: initialPauseHourRef,
+            totalItems: 24
+        });
+
+        const modalInitialPauseMinuteCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-initial-pause-minute-carousel'),
+            mainItemsContainer: document.getElementById('modal-initial-pause-minute-items'),
+            upButton: document.querySelector('#modal-initial-pause-minute-carousel .carousel-button.up'),
+            downButton: document.querySelector('#modal-initial-pause-minute-carousel .carousel-button.down'),
+            selectionOverlay: document.getElementById('initial-pause-minute-selection-overlay'),
+            selectionItemsContainer: document.getElementById('initial-pause-minute-selection-items'),
+            currentValueRef: initialPauseMinuteRef,
+            totalItems: 60
+        });
+
+        // Carrosséis do modal de duração
+        const modalPauseDurationHourCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-pause-duration-hour'),
+            mainItemsContainer: document.getElementById('modal-pause-duration-hour-items'),
+            upButton: document.querySelector('#modal-pause-duration-hour .carousel-button.up'),
+            downButton: document.querySelector('#modal-pause-duration-hour .carousel-button.down'),
+            selectionOverlay: document.getElementById('pause-duration-hour-selection-overlay'),
+            selectionItemsContainer: document.getElementById('pause-duration-hour-selection-items'),
+            currentValueRef: pauseDurationHourRef,
+            totalItems: 24
+        });
+
+        const modalPauseDurationMinuteCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-pause-duration-minute'),
+            mainItemsContainer: document.getElementById('modal-pause-duration-minute-items'),
+            upButton: document.querySelector('#modal-pause-duration-minute .carousel-button.up'),
+            downButton: document.querySelector('#modal-pause-duration-minute .carousel-button.down'),
+            selectionOverlay: document.getElementById('pause-duration-minute-selection-overlay'),
+            selectionItemsContainer: document.getElementById('pause-duration-minute-selection-items'),
+            currentValueRef: pauseDurationMinuteRef,
+            totalItems: 60
+        });
+
+        // Carrosséis do modal de hora de término
+        const modalPauseEndHourCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-pause-end-hour'),
+            mainItemsContainer: document.getElementById('modal-pause-end-hour-items'),
+            upButton: document.querySelector('#modal-pause-end-hour .carousel-button.up'),
+            downButton: document.querySelector('#modal-pause-end-hour .carousel-button.down'),
+            selectionOverlay: document.getElementById('pause-end-hour-selection-overlay'),
+            selectionItemsContainer: document.getElementById('pause-end-hour-selection-items'),
+            currentValueRef: pauseEndHourRef,
+            totalItems: 24
+        });
+
+        const modalPauseEndMinuteCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-pause-end-minute'),
+            mainItemsContainer: document.getElementById('modal-pause-end-minute-items'),
+            upButton: document.querySelector('#modal-pause-end-minute .carousel-button.up'),
+            downButton: document.querySelector('#modal-pause-end-minute .carousel-button.down'),
+            selectionOverlay: document.getElementById('pause-end-minute-selection-overlay'),
+            selectionItemsContainer: document.getElementById('pause-end-minute-selection-items'),
+            currentValueRef: pauseEndMinuteRef,
+            totalItems: 60
+        });
+
+        // ==========================================================
+        // LÓGICA DOS MODAIS DE CONFIGURAÇÃO DE PAUSA
+        // ==========================================================
+
+        const openPauseConfigModalButton = document.getElementById('openPauseConfigModalButton');
+        const modalInitialTime = document.getElementById('modal-initial-time');
+        const modalPauseDetails = document.getElementById('modal-pause-details');
+
+        const modalInitialTimeNextButton = document.getElementById('modal-initial-time-next');
+        const modalDetailsBackButton = document.getElementById('modal-details-back');
+        const modalDetailsDefineButton = document.getElementById('modal-details-define');
+
+        const modalPauseModeDurationRadio = document.getElementById('modal-pause-mode-duration');
+        const modalPauseModeEndTimeRadio = document.getElementById('modal-pause-mode-end-time');
+        const modalCamposDuracao = document.getElementById('modal-campos-duracao');
+        const modalCamposFim = document.getElementById('modal-campos-fim');
+        const modalDailyRepeatCheckbox = document.getElementById('modal-daily-repeat-checkbox');
+
+        // Abre o primeiro modal de configuração
+        openPauseConfigModalButton.addEventListener('click', () => {
+            // Sincroniza os carrosséis do modal com a hora atual ao abrir
+            const now = new Date();
+            initialPauseHourRef.value = now.getHours();
+            initialPauseMinuteRef.value = now.getMinutes();
+            modalInitialPauseHourCarousel.updateMainCarouselPosition(initialPauseHourRef.value);
+            modalInitialPauseMinuteCarousel.updateMainCarouselPosition(initialPauseMinuteRef.value);
+            modalInitialPauseHourCarousel.populateMainCarousel(); // Repopula para garantir que a classe 'selected' seja aplicada
+            modalInitialPauseMinuteCarousel.populateMainCarousel(); // Repopula para garantir que a classe 'selected' seja aplicada
+
+
+            // Reseta a seleção de duração/fim e o checkbox de repetição
+            modalPauseModeDurationRadio.checked = true;
+            modalCamposDuracao.style.display = 'flex';
+            modalCamposFim.style.display = 'none';
+            modalDailyRepeatCheckbox.checked = false;
+
+            // Define valores padrão para duração/fim no segundo modal
+            pauseDurationHourRef.value = 0;
+            pauseDurationMinuteRef.value = 30; // Sugere 30 minutos de duração
+            modalPauseDurationHourCarousel.updateMainCarouselPosition(pauseDurationHourRef.value);
+            modalPauseDurationMinuteCarousel.updateMainCarouselPosition(pauseDurationMinuteRef.value);
+            modalPauseDurationHourCarousel.populateMainCarousel();
+            modalPauseDurationMinuteCarousel.populateMainCarousel();
+
+            // Sincroniza a hora de término com a hora inicial + duração padrão
+            const initialMoment = new Date();
+            initialMoment.setHours(initialPauseHourRef.value);
+            initialMoment.setMinutes(initialPauseMinuteRef.value);
+            initialMoment.setMinutes(initialMoment.getMinutes() + pauseDurationMinuteRef.value);
+            initialMoment.setHours(initialMoment.getHours() + pauseDurationHourRef.value);
+
+            pauseEndHourRef.value = initialMoment.getHours();
+            pauseEndMinuteRef.value = initialMoment.getMinutes();
+            modalPauseEndHourCarousel.updateMainCarouselPosition(pauseEndHourRef.value);
+            modalPauseEndMinuteCarousel.updateMainCarouselPosition(pauseEndMinuteRef.value);
+            modalPauseEndHourCarousel.populateMainCarousel();
+            modalPauseEndMinuteCarousel.populateMainCarousel();
+
+
+            modalInitialTime.classList.add('active');
+            modalPauseDetails.classList.remove('active');
+        });
+
+        // Navega do primeiro modal para o segundo
+        modalInitialTimeNextButton.addEventListener('click', () => {
+            tempPauseStartHour = initialPauseHourRef.value;
+            tempPauseStartMinute = initialPauseMinuteRef.value;
+            modalInitialTime.classList.remove('active');
+            modalPauseDetails.classList.add('active');
+        });
+
+        // Navega do segundo modal de volta para o primeiro
+        modalDetailsBackButton.addEventListener('click', () => {
+            modalPauseDetails.classList.remove('active');
+            modalInitialTime.classList.add('active');
+        });
+
+        // Alterna entre campos de duração e hora de término
+        modalPauseModeDurationRadio.addEventListener('change', () => {
+            modalCamposDuracao.style.display = 'flex';
+            modalCamposFim.style.display = 'none';
+        });
+
+        modalPauseModeEndTimeRadio.addEventListener('change', () => {
+            modalCamposDuracao.style.display = 'none';
+            modalCamposFim.style.display = 'flex';
+        });
+
+        // Lógica para definir a pausa final
+        modalDetailsDefineButton.addEventListener('click', () => {
+            let finalEndHour;
+            let finalEndMinute;
+
+            tempPauseIsDailyRepeat = modalDailyRepeatCheckbox.checked;
+
+            if (modalPauseModeDurationRadio.checked) {
+                // Calcular hora de término baseada na duração
+                const startMoment = new Date();
+                startMoment.setHours(tempPauseStartHour);
+                startMoment.setMinutes(tempPauseStartMinute);
+                startMoment.setSeconds(0); // Zera segundos para cálculo preciso
+
+                startMoment.setHours(startMoment.getHours() + pauseDurationHourRef.value);
+                startMoment.setMinutes(startMoment.getMinutes() + pauseDurationMinuteRef.value);
+
+                finalEndHour = startMoment.getHours();
+                finalEndMinute = startMoment.getMinutes();
+            } else {
+                // Usar hora de término diretamente
+                finalEndHour = pauseEndHourRef.value;
+                finalEndMinute = pauseEndMinuteRef.value;
+            }
+
+            // Validar se a hora de término é posterior à de início se não for repetição diária
+            // Para repetição diária, a hora de término pode ser no dia seguinte (ex: 23h - 01h)
+            if (!tempPauseIsDailyRepeat) {
+                const startTimeInMinutes = tempPauseStartHour * 60 + tempPauseStartMinute;
+                const endTimeInMinutes = finalEndHour * 60 + finalEndMinute;
+
+                if (endTimeInMinutes <= startTimeInMinutes) {
+                    showStatusMessage("Erro: A hora de término deve ser posterior à hora de início para pausas únicas.", true);
+                    return; // Impede a adição da pausa
+                }
+            }
+
+
+            addPause(tempPauseStartHour, tempPauseStartMinute, finalEndHour, finalEndMinute, tempPauseIsDailyRepeat);
+
+            // Fecha o modal após definir a pausa
+            modalPauseDetails.classList.remove('active');
+        });
+
+        // Close modals on overlay click (for config modals)
+        modalInitialTime.addEventListener('click', (event) => {
+            if (event.target === modalInitialTime) {
+                modalInitialTime.classList.remove('active');
+            }
+        });
+
+        modalPauseDetails.addEventListener('click', (event) => {
+            if (event.target === modalPauseDetails) {
+                modalPauseDetails.classList.remove('active');
+            }
+        });
+
+        // ==========================================================
+        // GIST INTEGRATION (Ainda a ser implementado com a nova estrutura)
+        // ==========================================================
+
+        const manageGistButton = document.getElementById('manageGistButton');
+        const gistConfigModal = document.getElementById('gist-config-modal');
+        const cancelGistConfigButton = document.getElementById('cancelGistConfig');
+        const saveGistConfigButton = document.getElementById('saveGistConfig');
+        const gistTokenInput = document.getElementById('gist-token');
+        const gistIdInput = document.getElementById('gist-id');
+
+        manageGistButton.addEventListener('click', () => {
+            gistConfigModal.classList.add('active');
+            // Aqui você carregaria o PAT e o Gist ID salvos localmente, se houver
+            gistTokenInput.value = localStorage.getItem('github_pat') || '';
+            gistIdInput.value = localStorage.getItem('gist_id') || '';
+        });
+
+        cancelGistConfigButton.addEventListener('click', () => {
+            gistConfigModal.classList.remove('active');
+        });
+
+        saveGistConfigButton.addEventListener('click', async () => {
+            const pat = gistTokenInput.value.trim();
+            const gistId = gistIdInput.value.trim();
+
+            if (!pat || !gistId) {
+                showStatusMessage('Token PAT e Gist ID são obrigatórios para integração com Gist.', true);
+                return;
+            }
+
+            localStorage.setItem('github_pat', pat);
+            localStorage.setItem('gist_id', gistId);
+            showStatusMessage('Configurações do Gist salvas. Tentando carregar pausas...', false);
+
+            gistConfigModal.classList.remove('active');
+
+            // TODO: Implementar loadPausesFromGist() e savePausesToGist()
+            // Isso será feito em uma etapa futura, adaptando-se à nova estrutura `activePauses`
+            // Por enquanto, apenas armazena as credenciais.
+            console.log("Integração com Gist configurada. Carregamento/Salvamento ainda a ser implementado.");
+        });
+
+        // ==========================================================
+        // INICIALIZAÇÃO GERAL
+        // ==========================================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateClockAndCheckPauses(); // Atualiza o relógio imediatamente ao carregar
+            updatePausesListUI(); // Renderiza a lista de pausas vazia ou pré-existente
+            // Solicita permissão para notificações (melhor UX se solicitado em um clique do usuário)
+            // No futuro, podemos mover isso para quando uma notificação for REALMENTE necessária
+            if ('Notification' in window) {
+                Notification.requestPermission();
+            }
+        });
+
+        // --- FIM DO BLOCO DE ACRÉSCIMO/SUBSTITUIÇÃO COMPLETA DO SCRIPT ---
+    </script>
+</body>
+</html>
