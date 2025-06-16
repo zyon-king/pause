@@ -1,3 +1,85 @@
+# Pomodorus: Clock-Driven Pause Management
+
+The most effective way to manage your Pomodoro pauses and notifications is through a **centralized clock monitoring system**. This system will constantly check the current time against a single, unified list of all your active pauses. When the current time matches a pause's start or end time, it'll trigger the appropriate notification. This approach is more robust and easier to scale.
+
+---
+
+## 1. The Unified Pause List
+
+You'll keep all your configured pauses in one place: a **single `List of Pause Objects`**. This simplifies everything, as your clock monitor only needs to iterate through this one list to find all relevant pauses.
+
+Each **Pause Object** in this list should have these key properties:
+
+* **`id`**: A **unique identifier** for each pause. This is essential for managing individual pauses, like removing them or updating their status.
+* **`startHour`**: The hour when the pause should begin (e.g., `9` for 9 AM).
+* **`startMinute`**: The minute when the pause should begin (e.g., `30` for 30 minutes past the hour).
+* **`endHour`**: The hour when the pause should end.
+* **`endMinute`**: The minute when the pause should end.
+* **`isDailyRepeat`**: A **boolean flag** (`true` or `false`).
+    * Set to `true` if the pause should repeat every day at the specified time (typically for Gist-loaded pauses).
+    * Set to `false` if it's a one-time pause, valid only for the day it's created.
+* **`triggeredStartForToday`**: A **boolean flag** (`true` or `false`). This prevents the "pause start" notification from firing more than once *per day* for daily repeating pauses when their time arrives.
+* **`triggeredEndForToday`**: A **boolean flag** (`true` or `false`). Similar to `triggeredStartForToday`, this ensures the "pause end" notification fires only once *per day*.
+* **`isActive`**: A **boolean flag** (`true` or `false`). For one-time pauses, you might set this to `false` (or remove the pause) once it has completed its cycle. For daily repeats, it generally remains `true` unless the user explicitly disables the pause.
+
+---
+
+## 2. Centralized Clock Monitoring Logic
+
+This is the core of how your Pomodorus will work. A single function will run very frequently (e.g., every second) using `setInterval`. This function's job is to check the time and trigger notifications.
+
+Here's the refined **conceptual flow** for this monitoring function:
+
+1.  **Get Current Time**:
+    * At the start of each `setInterval` cycle, get the **`currentHour`** and **`currentMinute`** from the user's system clock. This ensures you're always checking against the live time.
+
+2.  **Handle Daily Reset (for `isDailyRepeat` pauses)**:
+    * **Logic**: At the very beginning of a new day (e.g., when `currentHour` is `00` and `currentMinute` is `00`, or during the first `setInterval` check that detects a new day), iterate through *all* `pauseObject`s where `isDailyRepeat` is `true`.
+    * **Action**: For these daily repeating pauses, **reset both `triggeredStartForToday` and `triggeredEndForToday` to `false`**. This makes them ready to trigger again for the new day.
+
+3.  **Iterate Through All Pauses**:
+    * Now, loop through **every single `pauseObject`** in your `List of Pause Objects`.
+
+4.  **Check for "Pause Start" Notification**:
+    * **Condition**: If `currentHour` **equals** `pauseObject.startHour` **AND** `currentMinute` **equals** `pauseObject.startMinute`:
+        * **For Daily Repeating Pauses (`isDailyRepeat: true`)**:
+            * **Additional Check**: If `pauseObject.triggeredStartForToday` is currently `false`:
+                * **Action**: **Trigger the "Pause Start" notification** (e.g., play a sound, show a visual alert).
+                * **Update Flag**: Set `pauseObject.triggeredStartForToday` to `true`.
+        * **For One-Time Pauses (`isDailyRepeat: false`)**:
+            * **Additional Check**: If `pauseObject.isActive` is `true` (meaning it hasn't completed its one-time cycle yet):
+                * **Action**: **Trigger the "Pause Start" notification**.
+                * **Internal Status**: You might want to set an internal flag like `pauseObject.hasActuallyStarted = true;` to indicate it has begun.
+
+5.  **Check for "Pause End" Notification**:
+    * **Condition**: If `currentHour` **equals** `pauseObject.endHour` **AND** `currentMinute` **equals** `pauseObject.endMinute`:
+        * **For Daily Repeating Pauses (`isDailyRepeat: true`)**:
+            * **Additional Check**: If `pauseObject.triggeredEndForToday` is currently `false`:
+                * **Action**: **Trigger the "Pause End" notification**.
+                * **Update Flag**: Set `pauseObject.triggeredEndForToday` to `true`.
+        * **For One-Time Pauses (`isDailyRepeat: false`)**:
+            * **Additional Check**: If `pauseObject.isActive` is `true` (and optionally, if `pauseObject.hasActuallyStarted` is `true`):
+                * **Action**: **Trigger the "Pause End" notification**.
+                * **Update Status**: Set `pauseObject.isActive` to `false`. At this point, it's a good idea to **remove this `pauseObject` from the `List of Pause Objects`** entirely, as its one-time purpose is fulfilled.
+
+---
+
+## 3. User Interface (UI) and Data Persistence
+
+These components will interact with your `List of Pause Objects`:
+
+* **"Configurar Nova Pausa" Modal**:
+    * When the user defines a new pause, it will **create a new `pauseObject`** and **add it to your `List of Pause Objects`**. The `isDailyRepeat` property will be set based on the user's choice in the modal.
+* **"Pausas Ativas" Display (`#pauses-list`)**:
+    * This section should be **dynamically rendered** based on the current contents of your `List of Pause Objects`. Any addition or removal of a pause object should immediately update this display.
+* **Removing Pauses**:
+    * The "Remover" button next to each active pause will simply **delete the corresponding `pauseObject` from your `List of Pause Objects`**.
+* **Gist Integration ("Carregar/Salvar Pausas")**:
+    * **Loading**: When you load from a Gist, you'll fetch the JSON data, parse it into an array of `pauseObject`s (these will likely all have `isDailyRepeat: true`), and **add them to your `List of Pause Objects`**. Implement logic to avoid adding duplicates if the same Gist is loaded multiple times.
+    * **Saving**: When saving to a Gist, you'll **serialize only the `pauseObject`s where `isDailyRepeat` is `true`** (since one-time pauses generally shouldn't be permanently saved) into a JSON string and update your Gist.
+
+
+
 # Pomodorus: A Modern Alarm & Pause System
 
 Pomodorus is a sleek, web-based alarm clock that goes beyond simple wake-up calls. It allows you to define specific "pause" periods throughout your day, either by duration or end time, making it ideal for managing work/break intervals, mindful interruptions, or even just scheduling your daily routines.
