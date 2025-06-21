@@ -54,7 +54,7 @@
         .alarm-container {
         	color: #00ccff; /* Azul neon */
             text-shadow: 0 0 20px rgba(0, 255, 204, 0.8), 0 0 30px rgba(0, 255, 204, 0.6);
-            background-color: #1b2335;
+            background-color: #171627;
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.1);
             border: 3px solid rgba(255, 255, 255, 0.2);
             padding: 40px;
@@ -92,7 +92,6 @@
             font-size: 1.2em;
             color: #ffffff;
             background-color: #00796b; /* Botão verde-azulado */
-            box-shadow: 0 0 10px rgb(0, 121, 107, 0.9);
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -125,7 +124,7 @@
         }
         .carousel {
             position: relative;
-            width: 80px; /* Largura para o valor */
+            width: 100px; /* Largura para o valor */
             height: 50px;
             overflow: hidden;
             border: 1px solid #ccc;
@@ -544,9 +543,9 @@
         #manageGistButton {
         	margin-top: 20px; 
             background-color: #003e80;
-            box-shadow:
+            /*box-shadow:
               0 0 8px rgba(25, 118, 210, 0.6),
-              0 0 12px rgba(25, 118, 210, 0.4);
+              0 0 12px rgba(25, 118, 210, 0.4);*/
         }
         
         @keyframes fadeInScale {
@@ -708,8 +707,8 @@
             </div>
             
             <div class="modal-checkbox-option" style="margin-top: 20px;">
-                <input type="checkbox" id="modal-daily-repeat-checkbox">
-                <label for="modal-daily-repeat-checkbox">Repetição Diária (requer Gist)</label>
+                <input type="checkbox" id="modal-daily-repeat-checkbox" disabled>
+                <label for="modal-daily-repeat-checkbox" >Repetição Diária (requer Gist)</label>
             </div>
 
             <div class="modal-buttons">
@@ -1318,7 +1317,21 @@
         // ==========================================================
 
         const GIST_FILENAME = 'pomodorus_pauses.json'; // Nome do arquivo dentro do Gist
+		
+        // Verifica se as credenciais do Gist estão presentes
+        function checkGistCredentials() {
+            const pat = localStorage.getItem('github_pat');
+            const gistId = localStorage.getItem('gist_id');
+            const isGistConfigured = pat && gistId;
 
+            const dailyRepeatCheckbox = document.getElementById('modal-daily-repeat-checkbox');
+            dailyRepeatCheckbox.disabled = !isGistConfigured; // Desabilita se não configurado
+            if (!isGistConfigured) {
+                dailyRepeatCheckbox.checked = false; // Desmarca se desabilitado
+            }
+            return isGistConfigured;
+        }
+        
         async function loadPausesFromGist() {
             const pat = localStorage.getItem('github_pat');
             const gistId = localStorage.getItem('gist_id');
@@ -1437,7 +1450,6 @@
 
         manageGistButton.addEventListener('click', () => {
             gistConfigModal.classList.add('active');
-            // Aqui você carregaria o PAT e o Gist ID salvos localmente, se houver
             gistTokenInput.value = localStorage.getItem('github_pat') || '';
             gistIdInput.value = localStorage.getItem('gist_id') || '';
         });
@@ -1452,20 +1464,37 @@
 
             if (!pat || !gistId) {
                 showStatusMessage('Token PAT e Gist ID são obrigatórios para integração com Gist.', true);
-                return;
+                // Não retorna aqui, pois queremos salvar mesmo que um esteja vazio para "limpar"
             }
 
             localStorage.setItem('github_pat', pat);
             localStorage.setItem('gist_id', gistId);
-            showStatusMessage('Configurações do Gist salvas. Tentando carregar pausas...', false);
 
-            gistConfigModal.classList.remove('active');
-            loadPausesFromGist(); // Chama a função para carregar pausas após salvar as credenciais
+            // CHAME A FUNÇÃO AQUI para atualizar o estado do checkbox
+            const isConfigured = checkGistCredentials(); 
+
+            if (isConfigured) {
+                showStatusMessage('Configurações do Gist salvas. Tentando carregar pausas...', false);
+                gistConfigModal.classList.remove('active');
+                loadPausesFromGist(); // Chama a função para carregar pausas após salvar as credenciais
+            } else {
+                showStatusMessage('Configurações do Gist removidas ou incompletas. Repetição diária desabilitada.', true);
+                gistConfigModal.classList.remove('active');
+                // Se as credenciais foram removidas, limpe as pausas diárias ativas se desejar
+                activePauses = activePauses.filter(pause => !pause.isDailyRepeat);
+                updatePausesListUI();
+            }
         });
 
         // ==========================================================
         // INICIALIZAÇÃO GERAL
-        // =================
+        // ==========================================================
+
+        // CHAME A FUNÇÃO AQUI para verificar as credenciais ao carregar a página
+        document.addEventListener('DOMContentLoaded', () => {
+            checkGistCredentials();
+            updatePausesListUI(); // Garante que a lista de pausas é renderizada ao carregar
+        });
     </script>
 </body>
 </html>
