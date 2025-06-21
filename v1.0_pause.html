@@ -4,9 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pomodorus</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto+Mono:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Orbitron', sans-serif; /* Orbitron para o corpo */
+        	color: #00ccff; /* Azul neon */
+            text-shadow: 0 0 5px rgba(0, 255, 204, 0.8), 0 0 20px rgba(0, 255, 204, 0.6);
+            letter-spacing: 1.5px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -16,17 +22,6 @@
             margin: 0;
             color: #333;
             flex-direction: column; /* Para alinhar o container principal e os carrosséis */
-        }
-        
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
         }
         
         /* --- Efeito de partículas de fundo (descomentado e funcional) --- */		
@@ -57,11 +52,14 @@
 
 
         .alarm-container {
-            background-color: #ffffff;
+        	color: #00ccff; /* Azul neon */
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.8), 0 0 30px rgba(0, 255, 204, 0.6);
+            background-color: #1b2335;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.2);
             padding: 40px;
-            padding-top: 00px;
+            padding-top: 5px;
             border-radius: 12px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
             text-align: center;
             width: 100%;
             max-width: 400px;
@@ -71,21 +69,21 @@
         }
 
         h1 {
-            color: #00796b; /* Um verde-azulado mais escuro */
             margin-bottom: 25px;
-            font-size: 2.2em;
+            font-size: 1.5em;
         }
 
         .time-display {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #263238;
-            margin-bottom: 20px;
-            padding: 10px;
-            background-color: #f0f0f0;
-            border-radius: 8px;            
-            
+            backdrop-filter: blur(10px); /* Efeito de desfoque */
+            border-radius: 8px;
+            z-index: 10; /* Garante que fique acima de outros elementos */
             animation: fadeInScale 1s ease-out; /* Animação de entrada */
+                        
+            padding: 0.6vh 1.5vw; /* Padding responsivo para o quadro */
+            /* --- POSICIONAMENTO PARA O CANTO SUPERIOR DIREITO --- */
+            position: relative; /* Posição absoluta em relação ao body */
+            margin-left: 75%; /* Distância da direita */
+            transform: none; /* Remove qualquer transformação indesejada de centralização */
         }
 
         /* --- Regras para o Botão de Ação --- */
@@ -94,13 +92,15 @@
             font-size: 1.2em;
             color: #ffffff;
             background-color: #00796b; /* Botão verde-azulado */
+            box-shadow: 0 0 10px rgb(0, 121, 107, 0.9);
             border: none;
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 10px rgba(0, 121, 107, 0.3);
             margin-top: 30px; /* Adicionado para separar o botão das opções de pausa */
             margin-bottom: 15px; /* Espaço entre o botão e a mensagem de status */
+            
+            animation: fadeInScale 1s ease-out; /* Animação de entrada */
         }
         button:hover {
             background-color: #004d40; /* Verde-azulado mais escuro no hover */
@@ -341,6 +341,7 @@
             background-color: #fff;
             padding: 30px;
             border-radius: 10px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             width: 90%;
             max-width: 400px; /* Largura similar ao alarm-container */
@@ -539,23 +540,46 @@
         .gist-modal-content .modal-buttons .cancel-button:hover {
             background-color: #607d8b;
         }
+        
+        #manageGistButton {
+        	margin-top: 20px; 
+            background-color: #003e80;
+            box-shadow:
+              0 0 8px rgba(25, 118, 210, 0.6),
+              0 0 12px rgba(25, 118, 210, 0.4);
+        }
+        
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
     </style>
 </head>
 <body>
 	<div id="particle-container"></div>
     
     <div class="alarm-container">
-        <h1>My Pomodorus</h1>
-        <div id="clock" class="time-display"></div>
+    
+    	<!-- Novo contêiner para o cabeçalho -->
+        <div class="header-content">    
+            <div id="clock" class="time-display"></div>
+            <h1>My Pomodorus</h1>    
+        </div>
 
         <div class="form-group">
-            <div class="section-title">Ações de Pausa:</div>
+            <div class="section-title">Configurar Nova Pausa:</div>
             
-            <button id="openPauseConfigModalButton">Configurar Nova Pausa</button>
+            <button id="openPauseConfigModalButton">Iniciar Configuração</button>
             <p id="alarmDisplay" class="status-message"></p>
         </div>
 
-        <button id="manageGistButton" style="margin-top: 20px; background-color: #1976d2;">Carregar/Salvar Pausas (Gist)</button>
+        <button id="manageGistButton">Carregar/Salvar Pausas (Gist)</button>
 
         <div id="active-pauses-section">
             <div class="section-title">Pausas Ativas:</div>
