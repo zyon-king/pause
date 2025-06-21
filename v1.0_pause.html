@@ -12,11 +12,49 @@
             align-items: center;
             min-height: auto; /* ou remova esta linha */
             padding-top: 2vh; /* Ajuste este valor confor */
-            background-color: #e0f7fa; /* Um azul claro suave */
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); /* Gradiente de fundo */
             margin: 0;
             color: #333;
             flex-direction: column; /* Para alinhar o container principal e os carrosséis */
         }
+        
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* --- Efeito de partículas de fundo (descomentado e funcional) --- */		
+        #particle-container {
+            position: fixed; /* cobre a tela inteira */
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* impede que as partículas escapem */
+            pointer-events: none; /* partículas não interferem com cliques */
+            z-index: -1; /* fica atrás de todo o conteúdo */
+        }
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: floatAndFade 15s infinite ease-in-out;
+            pointer-events: none; /* Garante que não interfira com cliques */
+            z-index: 0; /* Fica no fundo */
+        }
+        
+        @keyframes floatAndFade {
+            0% { transform: translateY(0) translateX(0) scale(1); opacity: 0.5; }
+            50% { transform: translateY(-50vh) translateX(50vw) scale(1.2); opacity: 0.2; }
+            100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.5; }
+        }
+
 
         .alarm-container {
             background-color: #ffffff;
@@ -28,6 +66,8 @@
             width: 100%;
             max-width: 400px;
             margin-bottom: 20px; /* Espaço entre o container do alarme e os overlays de seleção */
+            
+            animation: fadeInScale 1s ease-out; /* Animação de entrada */
         }
 
         h1 {
@@ -43,7 +83,9 @@
             margin-bottom: 20px;
             padding: 10px;
             background-color: #f0f0f0;
-            border-radius: 8px;
+            border-radius: 8px;            
+            
+            animation: fadeInScale 1s ease-out; /* Animação de entrada */
         }
 
         /* --- Regras para o Botão de Ação --- */
@@ -500,6 +542,8 @@
     </style>
 </head>
 <body>
+	<div id="particle-container"></div>
+    
     <div class="alarm-container">
         <h1>My Pomodorus</h1>
         <div id="clock" class="time-display"></div>
@@ -667,990 +711,737 @@
     </div>
 
     <script>
+
+        // ==========================================================
+        // Função para criar as partículas de fundo
+        // ==========================================================        
+        function createParticles() {
+            const numParticles = 60;
+            const container = document.getElementById('particle-container');
+
+            for (let i = 0; i < numParticles; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                particle.style.width = `${Math.random() * 10 + 5}px`;
+                particle.style.height = particle.style.width;
+                particle.style.left = `${Math.random() * 100}vw`;
+                particle.style.top = `${Math.random() * 100}vh`;
+                particle.style.animationDelay = `${Math.random() * 15}s`;
+                container.appendChild(particle);
+            }
+        }
+
+        createParticles();
     
-// --- VARIÁVEIS GLOBAIS E REFERÊNCIAS DE ELEMENTOS ---
+        // --- COMEÇO DO BLOCO DE ACRÉSCIMO/SUBSTITUIÇÃO COMPLETA DO SCRIPT ---
 
-// Carrosséis da tela principal (se aplicável, com base no seu HTML)
-const mainHourCarousel = null; // Substitua com a instância real se houver
-const mainMinuteCarousel = null; // Substitua com a instância real se houver
+        // ==========================================================
+        // VARIÁVEIS GLOBAIS E INICIALIZAÇÕES
+        // ==========================================================
+        let activePauses = []; // Array para armazenar todos os objetos de pausa
+        let hasDailyResetOccurred = false; // Flag para controlar o reset de pausas diárias
+        const notificationSound = new Audio('notification.mp3'); // Certifique-se de ter um arquivo notification.mp3
+        const alarmDisplay = document.getElementById('alarmDisplay'); // Elemento para mensagens de status
 
-// Elementos da UI principal
-const clockDisplay = document.getElementById('clock-display');
-const alarmDisplay = document.getElementById('alarm-display');
-const currentPauseDisplay = document.getElementById('current-pause-display');
-const nextPauseDisplay = document.getElementById('next-pause-display');
-const pausesList = document.getElementById('pauses-list'); // Lista de pausas configuradas
+        // Variáveis temporárias para a configuração da nova pausa via modal
+        let tempPauseStartHour = 0;
+        let tempPauseStartMinute = 0;
+        let tempPauseDurationHour = 0;
+        let tempPauseDurationMinute = 0;
+        let tempPauseEndHour = 0;
+        let tempPauseEndMinute = 0;
+        let tempPauseIsDailyRepeat = false;
 
-// Botões da UI principal
-const openPauseConfigModalButton = document.getElementById('open-pause-config-modal');
-const manageGistButton = document.getElementById('manage-gist-button'); // Botão para abrir o modal do Gist
+        // ==========================================================
+        // FUNÇÕES DE UTILIDADE
+        // ==========================================================
 
-// Modais
-const modalInitialTime = document.getElementById('modal-initial-time'); // Primeiro modal de configuração de pausa
-const modalPauseDetails = document.getElementById('modal-pause-details'); // Segundo modal de configuração de pausa
-const gistConfigModal = document.getElementById('gist-config-modal'); // Modal de configuração do Gist
-
-// Referências para valores dos carrosséis do primeiro modal (hora inicial da pausa)
-const initialPauseHourRef = { value: 0 };
-const initialPauseMinuteRef = { value: 0 };
-
-// Referências para valores dos carrosséis do segundo modal (duração da pausa)
-const modalPauseDurationHourRef = { value: 0 };
-const modalPauseDurationMinuteRef = { value: 30 }; // Padrão de 30 minutos
-
-// Referências para valores dos carrosséis do segundo modal (hora final da pausa)
-const modalPauseEndHourRef = { value: 0 };
-const modalPauseEndMinuteRef = { value: 0 };
-
-// Campos de seleção de tipo de término de pausa (duração ou hora final)
-const modalPauseEndTypeRadios = document.querySelectorAll('input[name="modal-pause-end-type"]');
-const modalPauseModeDurationRadio = document.getElementById('modal-pause-mode-duration'); // Referência ao radio de duração
-const modalCamposDuracao = document.getElementById('modal-campos-duracao');
-const modalCamposFim = document.getElementById('modal-campos-fim');
-let modalPauseEndTypeSelected = 'duration'; // Padrão
-
-// Checkbox de repetição diária
-const modalDailyRepeatCheckbox = document.getElementById('modal-daily-repeat');
-
-// Botões de navegação dos modais
-const modalInitialTimeNextButton = document.getElementById('modal-initial-time-next');
-const modalDetailsDefineButton = document.getElementById('modal-details-define');
-const modalDetailsBackButton = document.getElementById('modal-details-back');
-
-// Elementos do modal de configuração do Gist
-const gistTokenInput = document.getElementById('gist-token-input');
-const gistIdInput = document.getElementById('gist-id-input');
-const saveGistConfigButton = document.getElementById('save-gist-config-button');
-const cancelGistConfigButton = document.getElementById('cancel-gist-config-button');
-
-// Variáveis para armazenar o token e ID do Gist (inicialmente do localStorage)
-let gistToken = localStorage.getItem('github_pat') || '';
-let gistId = localStorage.getItem('gist_id') || '';
-
-// Array para armazenar as pausas ativas
-let activePauses = [];
-
-// Para controlar a última data em que o reset diário foi feito
-let lastDailyResetDate = localStorage.getItem('lastDailyResetDate');
-
-// Nome do arquivo dentro do Gist
-const GIST_FILENAME = 'pomodorus_pauses.json';
-
-// --- CLASSE TimeCarousel ---
-class TimeCarousel {
-    constructor({ mainCarouselElement, mainItemsContainer, upButton, downButton, selectionOverlay, selectionItemsContainer, currentValueRef, totalItems, hasAmPm = false }) {
-        this.mainCarouselElement = mainCarouselElement;
-        this.mainItemsContainer = mainItemsContainer;
-        this.upButton = upButton;
-        this.downButton = downButton;
-        this.selectionOverlay = selectionOverlay;
-        this.selectionItemsContainer = selectionItemsContainer;
-        this.currentValueRef = currentValueRef;
-        this.totalItems = totalItems;
-        this.hasAmPm = hasAmPm;
-        this.isEnabled = true; // Novo estado para habilitar/desabilitar
-
-        this.init();
-    }
-
-    init() {
-        this.populateMainCarousel();
-        this.attachEventListeners();
-        this.updateMainCarouselPosition(this.currentValueRef.value); // Garante que a posição inicial esteja correta
-    }
-
-    setEnabled(enabled) {
-        this.isEnabled = enabled;
-        if (this.mainCarouselElement) {
-            if (enabled) {
-                this.mainCarouselElement.classList.remove('disabled');
-            } else {
-                this.mainCarouselElement.classList.add('disabled');
-            }
-        }
-        if (this.upButton) this.upButton.disabled = !enabled;
-        if (this.downButton) this.downButton.disabled = !enabled;
-    }
-
-    formatTime(value) {
-        return String(value).padStart(2, '0');
-    }
-
-    populateMainCarousel() {
-        if (!this.mainItemsContainer) return;
-
-        this.mainItemsContainer.innerHTML = '';
-        const items = [];
-
-        // Adiciona itens antes do valor atual para preencher a visualização
-        for (let i = -2; i <= 2; i++) {
-            let itemValue = (this.currentValueRef.value + i + this.totalItems * 5) % this.totalItems; // +totalItems*5 para lidar com números negativos no módulo
-            let displayValue = this.formatTime(itemValue);
-            if (this.hasAmPm) {
-                displayValue = this.formatAmPm(itemValue);
-            }
-            const itemDiv = document.createElement('div');
-            itemDiv.classList.add('carousel-item');
-            if (i === 0) itemDiv.classList.add('active'); // O item central é o ativo
-            itemDiv.textContent = displayValue;
-            itemDiv.dataset.value = itemValue; // Armazena o valor numérico
-            items.push(itemDiv);
-        }
-        items.forEach(item => this.mainItemsContainer.appendChild(item));
-    }
-
-    updateMainCarouselPosition(newValue, animate = false) {
-        // Garantir que newValue esteja dentro dos limites
-        newValue = (newValue % this.totalItems + this.totalItems) % this.totalItems;
-        this.currentValueRef.value = newValue;
-
-        // Repopula o carrossel principal para mostrar os novos itens centrados
-        this.populateMainCarousel();
-
-        // Nenhuma transição de scroll real, apenas reposiciona o conteúdo
-        if (this.mainItemsContainer) {
-            // A "posição" visual já é ajustada pelo populateMainCarousel
+        // Função para gerar IDs únicos (simplificada)
+        function generateUniqueId() {
+            return `pause-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
         }
 
-        // Se o overlay de seleção estiver aberto, atualize-o também
-        if (this.selectionOverlay && this.selectionOverlay.classList.contains('active')) {
-            this.populateSelectionOverlay();
-        }
-    }
-
-    increment() {
-        if (!this.isEnabled) return;
-        this.updateMainCarouselPosition((this.currentValueRef.value + 1 + this.totalItems) % this.totalItems);
-    }
-
-    decrement() {
-        if (!this.isEnabled) return;
-        this.updateMainCarouselPosition((this.currentValueRef.value - 1 + this.totalItems) % this.totalItems);
-    }
-
-    openSelectionOverlay() {
-        if (!this.isEnabled) return;
-        if (this.selectionOverlay) {
-            this.selectionOverlay.classList.add('active');
-            this.populateSelectionOverlay();
-            this.scrollToCurrentValueInOverlay();
-        }
-    }
-
-    closeSelectionOverlay() {
-        if (this.selectionOverlay) {
-            this.selectionOverlay.classList.remove('active');
-        }
-    }
-
-    populateSelectionOverlay() {
-        if (!this.selectionItemsContainer) return;
-
-        this.selectionItemsContainer.innerHTML = '';
-        for (let i = 0; i < this.totalItems; i++) {
-            let displayValue = this.formatTime(i);
-            if (this.hasAmPm) {
-                displayValue = this.formatAmPm(i);
-            }
-            const itemDiv = document.createElement('div');
-            itemDiv.classList.add('selection-item');
-            if (i === this.currentValueRef.value) {
-                itemDiv.classList.add('selected');
-            }
-            itemDiv.textContent = displayValue;
-            itemDiv.dataset.value = i;
-            itemDiv.addEventListener('click', () => this.selectValueFromOverlay(i));
-            this.selectionItemsContainer.appendChild(itemDiv);
-        }
-    }
-
-    scrollToCurrentValueInOverlay() {
-        if (!this.selectionItemsContainer) return;
-
-        const selectedItem = this.selectionItemsContainer.querySelector('.selection-item.selected');
-        if (selectedItem) {
-            // Scroll para centralizar o item selecionado
-            this.selectionItemsContainer.scrollTop = selectedItem.offsetTop -
-                (this.selectionItemsContainer.clientHeight / 2) + (selectedItem.clientHeight / 2);
-        }
-    }
-
-    selectValueFromOverlay(value) {
-        if (!this.isEnabled) return;
-        this.updateMainCarouselPosition(value);
-        this.closeSelectionOverlay();
-    }
-
-    attachEventListeners() {
-        if (this.upButton) {
-            this.upButton.addEventListener('click', () => this.increment());
-        }
-        if (this.downButton) {
-            this.downButton.addEventListener('click', () => this.decrement());
-        }
-        if (this.mainCarouselElement) {
-            this.mainCarouselElement.addEventListener('click', () => this.openSelectionOverlay());
-        }
-        if (this.selectionOverlay) {
-            this.selectionOverlay.addEventListener('click', (event) => {
-                // Fecha o overlay apenas se clicou no fundo, não nos itens
-                if (event.target === this.selectionOverlay) {
-                    this.closeSelectionOverlay();
-                }
-            });
-        }
-    }
-}
-
-
-// --- INSTÂNCIAS DOS CARROSSÉIS (Modais) ---
-
-const modalInitialPauseHourCarousel = new TimeCarousel({
-    mainCarouselElement: document.getElementById('modal-initial-pause-hour'),
-    mainItemsContainer: document.getElementById('modal-initial-pause-hour-items'),
-    upButton: document.querySelector('#modal-initial-pause-hour .carousel-button.up'),
-    downButton: document.querySelector('#modal-initial-pause-hour .carousel-button.down'),
-    selectionOverlay: document.getElementById('initial-pause-hour-selection-overlay'),
-    selectionItemsContainer: document.getElementById('initial-pause-hour-selection-items'),
-    currentValueRef: initialPauseHourRef,
-    totalItems: 24
-});
-
-const modalInitialPauseMinuteCarousel = new TimeCarousel({
-    mainCarouselElement: document.getElementById('modal-initial-pause-minute'),
-    mainItemsContainer: document.getElementById('modal-initial-pause-minute-items'),
-    upButton: document.querySelector('#modal-initial-pause-minute .carousel-button.up'),
-    downButton: document.querySelector('#modal-initial-pause-minute .carousel-button.down'),
-    selectionOverlay: document.getElementById('initial-pause-minute-selection-overlay'),
-    selectionItemsContainer: document.getElementById('initial-pause-minute-selection-items'),
-    currentValueRef: initialPauseMinuteRef,
-    totalItems: 60
-});
-
-const modalPauseDurationHourCarousel = new TimeCarousel({
-    mainCarouselElement: document.getElementById('modal-pause-duration-hour'),
-    mainItemsContainer: document.getElementById('modal-pause-duration-hour-items'),
-    upButton: document.querySelector('#modal-pause-duration-hour .carousel-button.up'),
-    downButton: document.querySelector('#modal-pause-duration-hour .carousel-button.down'),
-    selectionOverlay: document.getElementById('pause-duration-hour-selection-overlay'),
-    selectionItemsContainer: document.getElementById('pause-duration-hour-selection-items'),
-    currentValueRef: modalPauseDurationHourRef,
-    totalItems: 24 // Duração pode ser até 23 horas
-});
-
-const modalPauseDurationMinuteCarousel = new TimeCarousel({
-    mainCarouselElement: document.getElementById('modal-pause-duration-minute'),
-    mainItemsContainer: document.getElementById('modal-pause-duration-minute-items'),
-    upButton: document.querySelector('#modal-pause-duration-minute .carousel-button.up'),
-    downButton: document.querySelector('#modal-pause-duration-minute .carousel-button.down'),
-    selectionOverlay: document.getElementById('pause-duration-minute-selection-overlay'),
-    selectionItemsContainer: document.getElementById('pause-duration-minute-selection-items'),
-    currentValueRef: modalPauseDurationMinuteRef,
-    totalItems: 60
-});
-
-const modalPauseEndHourCarousel = new TimeCarousel({
-    mainCarouselElement: document.getElementById('modal-pause-end-hour'),
-    mainItemsContainer: document.getElementById('modal-pause-end-hour-items'),
-    upButton: document.querySelector('#modal-pause-end-hour .carousel-button.up'),
-    downButton: document.querySelector('#modal-pause-end-hour .carousel-button.down'),
-    selectionOverlay: document.getElementById('pause-end-hour-selection-overlay'),
-    selectionItemsContainer: document.getElementById('pause-end-hour-selection-items'),
-    currentValueRef: modalPauseEndHourRef,
-    totalItems: 24
-});
-
-const modalPauseEndMinuteCarousel = new TimeCarousel({
-    mainCarouselElement: document.getElementById('modal-pause-end-minute'),
-    mainItemsContainer: document.getElementById('modal-pause-end-minute-items'),
-    upButton: document.querySelector('#modal-pause-end-minute .carousel-button.up'),
-    downButton: document.querySelector('#modal-pause-end-minute .carousel-button.down'),
-    selectionOverlay: document.getElementById('pause-end-minute-selection-overlay'),
-    selectionItemsContainer: document.getElementById('pause-end-minute-selection-items'),
-    currentValueRef: modalPauseEndMinuteRef,
-    totalItems: 60
-});
-
-
-// --- GESTÃO DE PAUSAS (Adicionar, Remover, Notificações, UI) ---
-
-function generateUniqueId() {
-    return 'pause-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-}
-
-function showDesktopNotification(title, body) {
-    if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, { body: body });
-    }
-}
-
-// Renomeada de renderPausesList para updatePausesListUI para consistência
-function updatePausesListUI() {
-    pausesList.innerHTML = ''; // Limpa a lista existente
-    if (activePauses.length === 0) {
-        pausesList.innerHTML = '<p class="no-pauses-message">Nenhuma pausa configurada.</p>';
-        return;
-    }
-
-    activePauses.forEach(pause => {
-        const pauseItem = document.createElement('div');
-        pauseItem.classList.add('pause-item');
-        pauseItem.dataset.id = pause.id;
-
-        const startH = String(pause.startTime.hours).padStart(2, '0');
-        const startM = String(pause.startTime.minutes).padStart(2, '0');
-        const endH = String(pause.endTime.hours).padStart(2, '0');
-        const endM = String(pause.endTime.minutes).padStart(2, '0');
-
-        let pauseText = `Pausa das ${startH}:${startM} às ${endH}:${endM}`;
-        if (pause.isDailyRepeat) { // Use isDailyRepeat
-            pauseText += ' (Diária)';
+        // Função para mostrar mensagens de status
+        function showStatusMessage(message, isError = false) {
+            alarmDisplay.textContent = message;
+            alarmDisplay.style.color = isError ? '#d32f2f' : '#00796b';
         }
 
-        pauseItem.innerHTML = `
-            <span>${pauseText}</span>
-            <button class="remove-pause-button" data-id="${pause.id}">Remover</button>
-        `;
-        pausesList.appendChild(pauseItem);
-    });
+        // ==========================================================
+        // GESTÃO DE PAUSAS (Adicionar, Remover, Atualizar UI)
+        // ==========================================================
 
-    // Adiciona event listeners para os botões de remover
-    document.querySelectorAll('.remove-pause-button').forEach(button => {
-        button.addEventListener('click', (event) => {
-            const idToRemove = event.target.dataset.id;
-            removePause(idToRemove);
-        });
-    });
-}
-
-function addPause(startH, startM, endH, endM, isDailyRepeat) {
-    const newPause = {
-        id: generateUniqueId(),
-        startTime: { hours: startH, minutes: startM },
-        endTime: { hours: endH, minutes: endM },
-        isDailyRepeat: isDailyRepeat, // Use isDailyRepeat aqui
-        lastNotifiedStart: null,
-        lastNotifiedEnd: null,
-        type: 'end-time' // Assumindo que sempre teremos um end-time definido
-    };
-    activePauses.push(newPause);
-    updatePausesListUI();
-    showStatusMessage('Nova pausa configurada!', false);
-    console.log('Pausa adicionada:', newPause);
-
-    if (isDailyRepeat) { // Salva no Gist se for uma pausa diária
-        savePausesToGist();
-    }
-}
-
-function removePause(idToRemove) {
-    const removedPause = activePauses.find(pause => pause.id === idToRemove);
-    activePauses = activePauses.filter(pause => pause.id !== idToRemove);
-    updatePausesListUI();
-    showStatusMessage('Pausa removida.', false);
-    console.log(`Pausa com ID ${idToRemove} removida.`);
-
-    if (removedPause && removedPause.isDailyRepeat) { // Salva no Gist se a pausa removida era diária
-        savePausesToGist(true); // Passa true para indicar que a chamada vem de uma remoção
-    }
-}
-
-// --- LÓGICA DE TEMPO E PAUSAS ATIVAS ---
-
-function updateClockAndCheckPauses() {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentSecond = now.getSeconds();
-
-    clockDisplay.textContent = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}:${String(currentSecond).padStart(2, '0')}`;
-
-    // Reset diário de estados de notificação
-    const todayDate = now.toDateString();
-    if (lastDailyResetDate !== todayDate) {
-        activePauses.forEach(pause => {
-            pause.lastNotifiedStart = null;
-            pause.lastNotifiedEnd = null;
-        });
-        localStorage.setItem('lastDailyResetDate', todayDate);
-        lastDailyResetDate = todayDate;
-        console.log('Reset diário de notificações de pausa.');
-    }
-
-    let isDuringAPause = false;
-    let nextPauseInfo = null;
-    let nextPauseTimeDiff = Infinity;
-
-    activePauses.forEach(pause => {
-        const startTotalMinutes = pause.startTime.hours * 60 + pause.startTime.minutes;
-        const endTotalMinutes = pause.endTime.hours * 60 + pause.endTime.minutes;
-        const currentTotalMinutes = currentHour * 60 + currentMinute;
-
-        // Lida com pausas que se estendem para o dia seguinte (ex: 23:00 - 01:00)
-        let actualEndTotalMinutes = endTotalMinutes;
-        if (endTotalMinutes < startTotalMinutes) {
-            actualEndTotalMinutes += 24 * 60; // Adiciona 24 horas em minutos
+        function addPause(startH, startM, endH, endM, dailyRepeat) {
+            const newPause = {
+                id: generateUniqueId(),
+                startHour: startH,
+                startMinute: startM,
+                endHour: endH,
+                endMinute: endM,
+                isDailyRepeat: dailyRepeat,
+                triggeredStartForToday: false,
+                triggeredEndForToday: false,
+                isActive: true // Pausa sempre começa como ativa
+            };
+            activePauses.push(newPause);
+            updatePausesListUI(); // Atualiza a lista na UI
+            showStatusMessage('Nova pausa configurada!', false);
+            console.log('Pausa adicionada:', newPause);
+            savePausesToGist(); // Salva no Gist após adicionar
         }
 
-        let actualCurrentTotalMinutes = currentTotalMinutes;
-        if (currentTotalMinutes < startTotalMinutes && endTotalMinutes < startTotalMinutes) {
-            actualCurrentTotalMinutes += 24 * 60;
+        function removePause(idToRemove) {
+            activePauses = activePauses.filter(pause => pause.id !== idToRemove);
+            updatePausesListUI(); // Atualiza a lista na UI
+            showStatusMessage('Pausa removida.', false);
+            console.log(`Pausa com ID ${idToRemove} removida.`);
+            savePausesToGist(); // Salva no Gist após remover
         }
 
-        const isCurrentlyInPause = actualCurrentTotalMinutes >= startTotalMinutes && actualCurrentTotalMinutes < actualEndTotalMinutes;
+        function updatePausesListUI() {
+            const pausesListUl = document.getElementById('pauses-list');
+            pausesListUl.innerHTML = ''; // Limpa a lista atual
 
-        if (isCurrentlyInPause) {
-            isDuringAPause = true;
-            // Notificação de início de pausa
-            if (!pause.lastNotifiedStart || pause.lastNotifiedStart !== todayDate) {
-                const message = `Pausa das ${String(pause.startTime.hours).padStart(2, '0')}:${String(pause.startTime.minutes).padStart(2, '0')} até ${String(pause.endTime.hours).padStart(2, '0')}:${String(pause.endTime.minutes).padStart(2, '0')}.`;
-                showDesktopNotification('Início da Pausa', message);
-                pause.lastNotifiedStart = todayDate;
-                alarmDisplay.textContent = `Pausa em andamento: ${String(pause.startTime.hours).padStart(2, '0')}:${String(pause.startTime.minutes).padStart(2, '0')} - ${String(pause.endTime.hours).padStart(2, '0')}:${String(pause.endTime.minutes).padStart(2, '0')}`;
-                alarmDisplay.style.color = '#00796b';
-            }
-            currentPauseDisplay.textContent = `Pausa atual: ${String(pause.startTime.hours).padStart(2, '0')}:${String(pause.startTime.minutes).padStart(2, '0')} - ${String(pause.endTime.hours).padStart(2, '0')}:${String(pause.endTime.minutes).padStart(2, '0')}`;
-        } else {
-            // Notificação de fim de pausa (se a pausa terminou e não foi notificada hoje)
-            if (currentTotalMinutes === endTotalMinutes && (!pause.lastNotifiedEnd || pause.lastNotifiedEnd !== todayDate)) {
-                if (currentSecond === 0) { // Notifica apenas no minuto 00 para evitar spam
-                    const message = `Pausa das ${String(pause.startTime.hours).padStart(2, '0')}:${String(pause.startTime.minutes).padStart(2, '0')} - ${String(pause.endTime.hours).padStart(2, '0')}:${String(pause.endTime.minutes).padStart(2, '0')} terminou.`;
-                    showDesktopNotification('Fim da Pausa', message);
-                    pause.lastNotifiedEnd = todayDate;
-                }
+            if (activePauses.length === 0) {
+                pausesListUl.innerHTML = '<li>Nenhuma pausa ativa configurada.</li>';
+                return;
             }
 
-            // Calcular próxima pausa
-            let timeToNextPause = (startTotalMinutes - currentTotalMinutes + 24 * 60) % (24 * 60); // Minutos até a próxima pausa
-            if (timeToNextPause === 0 && !isCurrentlyInPause) { // Se for 0, mas não está em pausa, significa que a pausa é agora
-                 // Isso pode acontecer se a hora de início for a hora atual mas a pausa ainda não foi ativada
-                 timeToNextPause = 24 * 60; // Considera para o dia seguinte para evitar conflito com 'em pausa'
-            }
-            
-            if (timeToNextPause > 0 && timeToNextPause < nextPauseTimeDiff) {
-                nextPauseTimeDiff = timeToNextPause;
-                nextPauseInfo = pause;
-            }
-        }
-    });
+            activePauses.forEach(pause => {
+                const listItem = document.createElement('li');
+                const start = `${pause.startHour.toString().padStart(2, '0')}:${pause.startMinute.toString().padStart(2, '0')}`;
+                const end = `${pause.endHour.toString().padStart(2, '0')}:${pause.endMinute.toString().padStart(2, '0')}`;
+                const type = pause.isDailyRepeat ? 'Diária' : 'Única';
 
-    if (!isDuringAPause) {
-        currentPauseDisplay.textContent = 'Nenhuma pausa ativa.';
-        if (nextPauseInfo) {
-            const nextStartH = String(nextPauseInfo.startTime.hours).padStart(2, '0');
-            const nextStartM = String(nextPauseInfo.startTime.minutes).padStart(2, '0');
-            nextPauseDisplay.textContent = `Próxima pausa: ${nextStartH}:${nextStartM}`;
-            alarmDisplay.textContent = `Próxima pausa às ${nextStartH}:${nextStartM}.`;
-            alarmDisplay.style.color = '#ff9800'; // Orange for upcoming
-        } else {
-            nextPauseDisplay.textContent = 'Nenhuma próxima pausa agendada.';
-            alarmDisplay.textContent = 'Nenhuma pausa agendada.';
-            alarmDisplay.style.color = '#757575'; // Gray for no alarms
-        }
-    } else {
-         nextPauseDisplay.textContent = 'Pausa em andamento...'; // Limpa a mensagem da próxima pausa
-    }
-}
-
-// Executa a atualização do relógio a cada segundo
-setInterval(updateClockAndCheckPauses, 1000);
-
-
-// --- LÓGICA DE INTEGRAÇÃO COM GIST ---
-
-async function getGistContent(gistId, token) {
-    const url = `https://api.github.com/gists/${gistId}`;
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Erro ao buscar Gist: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const gist = await response.json();
-        // Assume que o arquivo principal é o `GIST_FILENAME`
-        const file = gist.files[GIST_FILENAME];
-        if (file) {
-            return file.content;
-        } else {
-            // Se o arquivo nomeado não existe, tenta pegar o primeiro arquivo, por compatibilidade
-            const filename = Object.keys(gist.files)[0];
-            if (filename) {
-                console.warn(`Arquivo "${GIST_FILENAME}" não encontrado no Gist. Usando o primeiro arquivo: "${filename}".`);
-                return gist.files[filename].content;
-            } else {
-                return null; // Gist vazio
-            }
-        }
-
-    } catch (error) {
-        console.error('Erro ao buscar Gist:', error);
-        showStatusMessage(`Erro ao carregar do Gist: ${error.message}`, true);
-        return null;
-    }
-}
-
-async function updateGistContent(gistId, token, filename, content) {
-    const url = `https://api.github.com/gists/${gistId}`;
-    const data = {
-        description: "Pomodorus Daily Pauses Configuration",
-        public: false, // Recomendado para segurança
-        files: {
-            [filename]: {
-                content: content
-            }
-        }
-    };
-
-    try {
-        const response = await fetch(url, {
-            method: 'PATCH', // Usamos PATCH para atualizar
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Erro ao atualizar Gist: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        await response.json();
-        showStatusMessage('Pausas diárias salvas no Gist com sucesso!', false);
-        console.log('Gist atualizado com sucesso.');
-        return true;
-
-    } catch (error) {
-        console.error('Erro ao salvar no Gist:', error);
-        showStatusMessage(`Erro ao salvar no Gist: ${error.message}`, true);
-        return false;
-    }
-}
-
-
-async function loadPausesFromGist() {
-    const pat = localStorage.getItem('github_pat');
-    const gistIdFromStorage = localStorage.getItem('gist_id');
-
-    if (!pat || !gistIdFromStorage) {
-        console.warn('PAT ou Gist ID não configurados. Não foi possível carregar pausas do Gist.');
-        showStatusMessage('Gist não configurado para carregar pausas diárias.', true);
-        modalDailyRepeatCheckbox.disabled = true;
-        modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Requer Gist configurado)';
-        modalDailyRepeatCheckbox.nextElementSibling.style.color = '#d32f2f';
-        return;
-    }
-
-    // Atualiza as variáveis globais com os valores do localStorage
-    gistToken = pat;
-    gistId = gistIdFromStorage;
-
-    try {
-        showStatusMessage('Carregando pausas diárias do Gist...', false);
-        const content = await getGistContent(gistId, pat);
-        
-        console.log('Conteúdo do Gist Bruto:', content);
-
-        if (content) {
-            let loadedPauses;
-            try {
-                loadedPauses = JSON.parse(content);
-                console.log('Conteúdo do Gist Parsed:', loadedPauses);
-            } catch (jsonError) {
-                console.error('Erro ao parsear JSON do Gist:', jsonError);
-                throw new Error(`Erro ao parsear JSON do Gist: ${jsonError.message}. Conteúdo inválido.`);
-            }
-
-            if (!Array.isArray(loadedPauses)) {
-                console.warn("Conteúdo do Gist não é um array. Ignorando.");
-                throw new Error("Conteúdo do Gist não é um array de pausas. Formato inválido.");
-            }
-
-            // Filtra e adiciona apenas pausas diárias carregadas que são válidas
-            // Remove pausas diárias antigas da memória (apenas as que são de repetição diária)
-            activePauses = activePauses.filter(pause => !pause.isDailyRepeat); 
-            
-            const validLoadedPauses = [];
-            loadedPauses.forEach(loadedPause => {
-                // Validação para a sua estrutura de objeto de pausa:
-                const isValidPause = 
-                    typeof loadedPause === 'object' && loadedPause !== null &&
-                    typeof loadedPause.startTime === 'object' && loadedPause.startTime !== null &&
-                    typeof loadedPause.startTime.hours === 'number' &&
-                    typeof loadedPause.startTime.minutes === 'number' &&
-                    typeof loadedPause.endTime === 'object' && loadedPause.endTime !== null &&
-                    typeof loadedPause.endTime.hours === 'number' &&
-                    typeof loadedPause.endTime.minutes === 'number' &&
-                    typeof loadedPause.dailyRepeat === 'boolean'; // Usa 'dailyRepeat' como no seu objeto
-
-                console.log('Validando pausa:', loadedPause, 'Resultado:', isValidPause);
-
-                if (isValidPause) {
-                    // Reinicia estados para o novo dia
-                    loadedPause.lastNotifiedStart = null;
-                    loadedPause.lastNotifiedEnd = null;
-                    // Garante que o ID é único
-                    loadedPause.id = loadedPause.id || generateUniqueId();
-                    // Garante que 'isDailyRepeat' esteja definido para o resto do app
-                    loadedPause.isDailyRepeat = loadedPause.dailyRepeat; 
-
-                    validLoadedPauses.push(loadedPause);
-                } else {
-                    console.warn("Pausa inválida encontrada no Gist e ignorada:", loadedPause);
-                    showStatusMessage("Atenção: Algumas pausas no Gist estão com formato inválido e foram ignoradas.", true);
-                }
+                listItem.innerHTML = `
+                    <span>${start} - ${end} (${type})</span>
+                    <button class="remove-pause-button" data-id="${pause.id}">Remover</button>
+                `;
+                pausesListUl.appendChild(listItem);
             });
 
-            if (validLoadedPaases.length > 0) {
-                activePauses.push(...validLoadedPauses); // Adiciona as pausas válidas
-                updatePausesListUI();
-                showStatusMessage('Pausas diárias carregadas do Gist!', false);
-                console.log('Pausas diárias carregadas:', activePauses.filter(p => p.isDailyRepeat));
-            } else {
-                 showStatusMessage('Gist encontrado, mas não contém pausas diárias válidas.', true);
-                 console.log('Nenhuma pausa diária válida encontrada no Gist.');
+            // Adiciona event listeners aos novos botões de remover
+            pausesListUl.querySelectorAll('.remove-pause-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const id = event.target.dataset.id;
+                    removePause(id);
+                });
+            });
+        }
+
+
+        // ==========================================================
+        // MONITORES DO RELÓGIO E DISPARO DE NOTIFICAÇÕES
+        // ==========================================================
+
+        function playNotificationSound() {
+            if (notificationSound) {
+                notificationSound.play().catch(e => console.error("Erro ao tocar o som:", e));
             }
-            
-            // Habilita o checkbox se o carregamento foi bem-sucedido
-            modalDailyRepeatCheckbox.disabled = false;
-            modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Gist configurado)';
-            modalDailyRepeatCheckbox.nextElementSibling.style.color = '';
-
-        } else {
-            showStatusMessage('Gist encontrado, mas sem conteúdo.', true);
         }
-    } catch (error) {
-        console.error('Erro ao processar pausas do Gist:', error);
-        showStatusMessage(`Erro ao carregar pausas: ${error.message}`, true);
-        modalDailyRepeatCheckbox.disabled = true;
-        modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Erro no Gist)';
-        modalDailyRepeatCheckbox.nextElementSibling.style.color = '#d32f2f';
-    }
-}
 
-async function savePausesToGist(fromRemove = false) {
-    const pat = localStorage.getItem('github_pat');
-    const gistIdFromStorage = localStorage.getItem('gist_id');
-
-    if (!pat || !gistIdFromStorage) {
-        if (fromRemove) {
-            console.warn("Gist não configurado, não é possível salvar alterações de pausas.");
-            return;
+        function triggerNotification(message) {
+            showStatusMessage(message, false); // Exibe mensagem na tela
+            playNotificationSound(); // Toca o som
+            if (Notification.permission === "granted") {
+                new Notification("Pomodorus", { body: message });
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification("Pomodorus", { body: message });
+                    }
+                });
+            }
         }
-        showStatusMessage('Gist não configurado. Não é possível salvar pausas diárias.', true);
-        return;
-    }
 
-    // Pega apenas as pausas que são de repetição diária
-    // Usa 'isDailyRepeat' para filtrar
-    const pausesToSave = activePauses.filter(pause => pause.isDailyRepeat);
-    // Remove 'isDailyRepeat' e outras propriedades temporárias para salvar no Gist
-    const cleanedPauses = pausesToSave.map(p => {
-        const { isDailyRepeat, triggeredStartForToday, triggeredEndForToday, isActive, ...rest } = p;
-        return rest; // Retorna o objeto sem as propriedades temporárias
-    });
+        function updateClockAndCheckPauses() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentSecond = now.getSeconds();
 
-    const gistContent = JSON.stringify(cleanedPauses, null, 2);
+            // Atualiza o display do relógio principal
+            const clockDisplay = document.getElementById('clock');
+            clockDisplay.textContent = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}:${String(currentSecond).padStart(2, '0')}`;
 
-    try {
-        showStatusMessage('Salvando pausas diárias no Gist...', false);
-        const success = await updateGistContent(gistIdFromStorage, pat, GIST_FILENAME, gistContent);
-        if (success) {
-            showStatusMessage('Pausas diárias salvas no Gist!', false);
-            console.log('Pausas diárias salvas:', cleanedPauses);
+            // Lógica de Reset Diário para Pausas Repetitivas (executa apenas uma vez às 00:00)
+            if (currentHour === 0 && currentMinute === 0 && !hasDailyResetOccurred) {
+                activePauses.forEach(pause => {
+                    if (pause.isDailyRepeat) {
+                        pause.triggeredStartForToday = false;
+                        pause.triggeredEndForToday = false;
+                    }
+                });
+                hasDailyResetOccurred = true; // Marca que o reset ocorreu para hoje
+                console.log("Pausas diárias resetadas para o novo dia.");
+            } else if (currentHour !== 0 || currentMinute !== 0) {
+                // Reinicia a flag de reset diário assim que o minuto muda de 00:00
+                hasDailyResetOccurred = false;
+            }
+
+            // Iterar e verificar cada pausa apenas no primeiro segundo do minuto para evitar spam de notificação
+            if (currentSecond === 0) { 
+                activePauses.forEach(pause => {
+                    // Verificar início da pausa
+                    if (currentHour === pause.startHour && currentMinute === pause.startMinute) {
+                        if (pause.isDailyRepeat && !pause.triggeredStartForToday) {
+                            triggerNotification(`Hora da Pausa Diária! (${pause.startHour.toString().padStart(2, '0')}:${pause.startMinute.toString().padStart(2, '0')})`);
+                            pause.triggeredStartForToday = true;
+                        } else if (!pause.isDailyRepeat && pause.isActive) {
+                            triggerNotification(`Pausa Única Iniciada! (${pause.startHour.toString().padStart(2, '0')}:${pause.startMinute.toString().padStart(2, '0')})`);
+                            // Para pausas únicas, não precisamos de triggeredStartForToday, a isActive já controla.
+                        }
+                    }
+
+                    // Verificar fim da pausa
+                    if (currentHour === pause.endHour && currentMinute === pause.endMinute) {
+                        if (pause.isDailyRepeat && !pause.triggeredEndForToday) {
+                            triggerNotification(`Fim da Pausa Diária! De volta ao trabalho. (${pause.endHour.toString().padStart(2, '0')}:${pause.endMinute.toString().padStart(2, '0')})`);
+                            pause.triggeredEndForToday = true;
+                        } else if (!pause.isDailyRepeat && pause.isActive) {
+                            triggerNotification(`Fim da Pausa Única! De volta ao trabalho. (${pause.endHour.toString().padStart(2, '0')}:${pause.endMinute.toString().padStart(2, '0')})`);
+                            pause.isActive = false; // Desativa a pausa única após o término
+                        }
+                    }
+                });
+
+                // Limpar pausas únicas inativas (opcional, pode ser feito com menos frequência)
+                // Isso remove pausas únicas da lista depois que elas terminaram
+                const initialLength = activePauses.length;
+                activePauses = activePauses.filter(pause => pause.isDailyRepeat || pause.isActive);
+                if (activePauses.length !== initialLength) {
+                    updatePausesListUI(); // Se houver remoção, atualiza a UI
+                }
+            }
         }
-    } catch (error) {
-        showStatusMessage(`Erro de rede ao salvar Gist: ${error.message}.`, true);
-        console.error('Erro de rede ao salvar Gist:', error);
-    }
-}
 
-function showStatusMessage(message, isError = false) {
-    alarmDisplay.textContent = message;
-    alarmDisplay.style.color = isError ? '#d32f2f' : '#00796b';
-}
+        setInterval(updateClockAndCheckPauses, 1000); // Roda a cada segundo
+
+        // ==========================================================
+        // CLASSES E INICIALIZAÇÃO DOS CARROUSSELS
+        // ==========================================================
+
+        class TimeCarousel {
+            constructor(options) {
+                this.mainCarouselElement = options.mainCarouselElement;
+                this.mainItemsContainer = options.mainItemsContainer;
+                this.upButton = options.upButton;
+                this.downButton = options.downButton;
+                this.selectionOverlay = options.selectionOverlay;
+                this.selectionItemsContainer = options.selectionItemsContainer;
+                this.currentValueRef = options.currentValueRef; // Object reference { value: N }
+                this.totalItems = options.totalItems;
+                this.itemHeight = 50;
+                this.itemsInView = 5;
+                this.bufferItems = Math.floor(this.itemsInView / 2);
+                this.numRepeats = 3; // For infinite scroll in overlay
+
+                this.isTransitioning = false; // Flag to prevent rapid jumps
+
+                this.populateMainCarousel();
+                this.updateMainCarouselPosition(this.currentValueRef.value);
+                this.setupMainCarouselScroll();
+                this.setupCarouselButtons();
+                this.setupSelectionCarouselInteraction();
+                this.populateSelectionCarousel(); // Initial population for overlays
+            }
+
+            populateMainCarousel() {
+                this.mainItemsContainer.innerHTML = '';
+                for (let i = 0; i < this.totalItems; i++) {
+                    const value = i.toString().padStart(2, '0');
+                    const item = document.createElement('div');
+                    item.classList.add('item');
+                    item.textContent = value;
+                    this.mainItemsContainer.appendChild(item);
+                }
+            }
+
+            updateMainCarouselPosition(currentIndex) {
+                this.mainItemsContainer.style.transform = `translateY(-${currentIndex * this.itemHeight}px)`;
+            }
+
+            setupMainCarouselScroll() {
+                this.mainItemsContainer.addEventListener('wheel', (event) => {
+                    event.preventDefault();
+                    if (event.deltaY > 0) { // Scroll down
+                        this.currentValueRef.value = (this.currentValueRef.value + 1) % this.totalItems;
+                    } else { // Scroll up
+                        this.currentValueRef.value = (this.currentValueRef.value - 1 + this.totalItems) % this.totalItems;
+                    }
+                    this.updateMainCarouselPosition(this.currentValueRef.value);
+                });
+            }
+
+            setupCarouselButtons() {
+                if (this.upButton) {
+                    this.upButton.addEventListener('click', () => {
+                        this.currentValueRef.value = (this.currentValueRef.value - 1 + this.totalItems) % this.totalItems;
+                        this.updateMainCarouselPosition(this.currentValueRef.value);
+                    });
+                }
+                if (this.downButton) {
+                    this.downButton.addEventListener('click', () => {
+                        this.currentValueRef.value = (this.currentValueRef.value + 1) % this.totalItems;
+                        this.updateMainCarouselPosition(this.currentValueRef.value);
+                    });
+                }
+            }
+
+            populateSelectionCarousel() {
+                this.selectionItemsContainer.innerHTML = '';
+                for (let r = 0; r < this.numRepeats; r++) {
+                    for (let i = 0; i < this.totalItems; i++) {
+                        const value = i.toString().padStart(2, '0');
+                        const item = document.createElement('div');
+                        item.classList.add('item');
+                        item.textContent = value;
+                        item.dataset.value = i; // Store actual value
+                        item.dataset.fullIndex = (r * this.totalItems) + i; // Store full index in repeated list
+                        this.selectionItemsContainer.appendChild(item);
+
+                        item.addEventListener('click', (event) => {
+                            const selectedValue = parseInt(event.target.dataset.value);
+                            this.currentValueRef.value = selectedValue; // Update the reference
+                            this.updateMainCarouselPosition(this.currentValueRef.value); // Update main carousel
+                            this.selectionOverlay.classList.remove('active'); // Close the overlay
+                            // Atualiza os carrosséis no modal após a seleção no overlay
+                            this.updateModalCarouselFromOverlay();
+                        });
+                    }
+                }
+            }
+
+            // Novo método para sincronizar o carrossel do modal com o valor selecionado no overlay
+            updateModalCarouselFromOverlay() {
+                if (this.mainItemsContainer) {
+                    this.populateMainCarousel(); // Recria os itens para garantir a classe 'selected'
+                    const items = this.mainItemsContainer.children;
+                    for (let i = 0; i < items.length; i++) {
+                        items[i].classList.remove('selected');
+                        if (parseInt(items[i].textContent) === this.currentValueRef.value) {
+                            items[i].classList.add('selected');
+                        }
+                    }
+                    this.updateMainCarouselPosition(this.currentValueRef.value);
+                }
+            }
+
+            setupSelectionCarouselInteraction() {
+                // Abre o overlay quando o carrossel principal é clicado
+                this.mainItemsContainer.parentElement.addEventListener('click', () => {
+                    this.selectionOverlay.classList.add('active');
+                    this.scrollToSelectedInOverlay();
+                });
+
+                // Permite fechar o overlay clicando fora do carrossel de seleção
+                this.selectionOverlay.addEventListener('click', (event) => {
+                    if (event.target === this.selectionOverlay) {
+                        this.selectionOverlay.classList.remove('active');
+                    }
+                });
+
+                // Adiciona rolagem suave ao overlay
+                this.selectionItemsContainer.addEventListener('wheel', (event) => {
+                    event.preventDefault();
+                    this.selectionItemsContainer.scrollBy({
+                        top: event.deltaY,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+
+            scrollToSelectedInOverlay() {
+                if (this.selectionOverlay.classList.contains('active')) {
+                    const selectedItemIndex = this.currentValueRef.value + this.totalItems; // Go to second repeat for better visual
+                    const targetScroll = selectedItemIndex * this.itemHeight - (this.selectionOverlay.clientHeight / 2) + (this.itemHeight / 2);
+                    this.selectionItemsContainer.scrollTo({
+                        top: targetScroll,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        }
+
+        // ==========================================================
+        // CONFIGURAÇÃO DOS CARROUSSELS E MODAIS
+        // ==========================================================
+
+        // Inicialização dos valores de referência para os carrosséis
+        const initialPauseHourRef = { value: 0 };
+        const initialPauseMinuteRef = { value: 0 };
+        const pauseDurationHourRef = { value: 0 };
+        const pauseDurationMinuteRef = { value: 0 };
+        const pauseEndHourRef = { value: 0 };
+        const pauseEndMinuteRef = { value: 0 };
+
+        // Carrosséis do modal de hora de início
+        const modalInitialPauseHourCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-initial-pause-hour-carousel'),
+            mainItemsContainer: document.getElementById('modal-initial-pause-hour-items'),
+            upButton: document.querySelector('#modal-initial-pause-hour-carousel .carousel-button.up'),
+            downButton: document.querySelector('#modal-initial-pause-hour-carousel .carousel-button.down'),
+            selectionOverlay: document.getElementById('initial-pause-hour-selection-overlay'),
+            selectionItemsContainer: document.getElementById('initial-pause-hour-selection-items'),
+            currentValueRef: initialPauseHourRef,
+            totalItems: 24
+        });
+
+        const modalInitialPauseMinuteCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-initial-pause-minute-carousel'),
+            mainItemsContainer: document.getElementById('modal-initial-pause-minute-items'),
+            upButton: document.querySelector('#modal-initial-pause-minute-carousel .carousel-button.up'),
+            downButton: document.querySelector('#modal-initial-pause-minute-carousel .carousel-button.down'),
+            selectionOverlay: document.getElementById('initial-pause-minute-selection-overlay'),
+            selectionItemsContainer: document.getElementById('initial-pause-minute-selection-items'),
+            currentValueRef: initialPauseMinuteRef,
+            totalItems: 60
+        });
+
+        // Carrosséis do modal de duração
+        const modalPauseDurationHourCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-pause-duration-hour'),
+            mainItemsContainer: document.getElementById('modal-pause-duration-hour-items'),
+            upButton: document.querySelector('#modal-pause-duration-hour .carousel-button.up'),
+            downButton: document.querySelector('#modal-pause-duration-hour .carousel-button.down'),
+            selectionOverlay: document.getElementById('pause-duration-hour-selection-overlay'),
+            selectionItemsContainer: document.getElementById('pause-duration-hour-selection-items'),
+            currentValueRef: pauseDurationHourRef,
+            totalItems: 24
+        });
+
+        const modalPauseDurationMinuteCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-pause-duration-minute'),
+            mainItemsContainer: document.getElementById('modal-pause-duration-minute-items'),
+            upButton: document.querySelector('#modal-pause-duration-minute .carousel-button.up'),
+            downButton: document.querySelector('#modal-pause-duration-minute .carousel-button.down'),
+            selectionOverlay: document.getElementById('pause-duration-minute-selection-overlay'),
+            selectionItemsContainer: document.getElementById('pause-duration-minute-selection-items'),
+            currentValueRef: pauseDurationMinuteRef,
+            totalItems: 60
+        });
+
+        // Carrosséis do modal de hora de término
+        const modalPauseEndHourCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-pause-end-hour'),
+            mainItemsContainer: document.getElementById('modal-pause-end-hour-items'),
+            upButton: document.querySelector('#modal-pause-end-hour .carousel-button.up'),
+            downButton: document.querySelector('#modal-pause-end-hour .carousel-button.down'),
+            selectionOverlay: document.getElementById('pause-end-hour-selection-overlay'),
+            selectionItemsContainer: document.getElementById('pause-end-hour-selection-items'),
+            currentValueRef: pauseEndHourRef,
+            totalItems: 24
+        });
+
+        const modalPauseEndMinuteCarousel = new TimeCarousel({
+            mainCarouselElement: document.getElementById('modal-pause-end-minute'),
+            mainItemsContainer: document.getElementById('modal-pause-end-minute-items'),
+            upButton: document.querySelector('#modal-pause-end-minute .carousel-button.up'),
+            downButton: document.querySelector('#modal-pause-end-minute .carousel-button.down'),
+            selectionOverlay: document.getElementById('pause-end-minute-selection-overlay'),
+            selectionItemsContainer: document.getElementById('pause-end-minute-selection-items'),
+            currentValueRef: pauseEndMinuteRef,
+            totalItems: 60
+        });
+
+        // ==========================================================
+        // LÓGICA DOS MODAIS DE CONFIGURAÇÃO DE PAUSA
+        // ==========================================================
+
+        const openPauseConfigModalButton = document.getElementById('openPauseConfigModalButton');
+        const modalInitialTime = document.getElementById('modal-initial-time');
+        const modalPauseDetails = document.getElementById('modal-pause-details');
+
+        const modalInitialTimeNextButton = document.getElementById('modal-initial-time-next');
+        const modalDetailsBackButton = document.getElementById('modal-details-back');
+        const modalDetailsDefineButton = document.getElementById('modal-details-define');
+
+        const modalPauseModeDurationRadio = document.getElementById('modal-pause-mode-duration');
+        const modalPauseModeEndTimeRadio = document.getElementById('modal-pause-mode-end-time');
+        const modalCamposDuracao = document.getElementById('modal-campos-duracao');
+        const modalCamposFim = document.getElementById('modal-campos-fim');
+        const modalDailyRepeatCheckbox = document.getElementById('modal-daily-repeat-checkbox');
+
+        // Abre o primeiro modal de configuração
+        openPauseConfigModalButton.addEventListener('click', () => {
+            // Sincroniza os carrosséis do modal com a hora atual ao abrir
+            const now = new Date();
+            initialPauseHourRef.value = now.getHours();
+            initialPauseMinuteRef.value = now.getMinutes();
+            modalInitialPauseHourCarousel.updateMainCarouselPosition(initialPauseHourRef.value);
+            modalInitialPauseMinuteCarousel.updateMainCarouselPosition(initialPauseMinuteRef.value);
+            modalInitialPauseHourCarousel.populateMainCarousel(); // Repopula para garantir que a classe 'selected' seja aplicada
+            modalInitialPauseMinuteCarousel.populateMainCarousel(); // Repopula para garantir que a classe 'selected' seja aplicada
 
 
-// --- LÓGICA DE INTERAÇÃO DA UI E EVENT LISTENERS ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Inicializa carrosséis dos modais
-    modalInitialPauseHourCarousel.setEnabled(true);
-    modalInitialPauseMinuteCarousel.setEnabled(true);
-
-    // Lógica para alternar campos de Duração/Fim dentro do modal de detalhes
-    function toggleModalPauseEndFields() {
-        modalPauseEndTypeSelected = document.querySelector('input[name="modal-pause-end-type"]:checked').value;
-
-        modalPauseDurationHourCarousel.setEnabled(false);
-        modalPauseDurationMinuteCarousel.setEnabled(false);
-        modalPauseEndHourCarousel.setEnabled(false);
-        modalPauseEndMinuteCarousel.setEnabled(false);
-
-        modalCamposDuracao.style.display = 'none';
-        modalCamposFim.style.display = 'none';
-
-        if (modalPauseEndTypeSelected === 'duration') {
+            // Reseta a seleção de duração/fim e o checkbox de repetição
+            modalPauseModeDurationRadio.checked = true;
             modalCamposDuracao.style.display = 'flex';
-            modalPauseDurationHourCarousel.setEnabled(true);
-            modalPauseDurationMinuteCarousel.setEnabled(true);
-        } else {
+            modalCamposFim.style.display = 'none';
+            modalDailyRepeatCheckbox.checked = false;
+
+            // Define valores padrão para duração/fim no segundo modal
+            pauseDurationHourRef.value = 0;
+            pauseDurationMinuteRef.value = 30; // Sugere 30 minutos de duração
+            modalPauseDurationHourCarousel.updateMainCarouselPosition(pauseDurationHourRef.value);
+            modalPauseDurationMinuteCarousel.updateMainCarouselPosition(pauseDurationMinuteRef.value);
+            modalPauseDurationHourCarousel.populateMainCarousel();
+            modalPauseDurationMinuteCarousel.populateMainCarousel();
+
+            // Sincroniza a hora de término com a hora inicial + duração padrão
+            const initialMoment = new Date();
+            initialMoment.setHours(initialPauseHourRef.value);
+            initialMoment.setMinutes(initialPauseMinuteRef.value);
+            initialMoment.setMinutes(initialMoment.getMinutes() + pauseDurationMinuteRef.value);
+            initialMoment.setHours(initialMoment.getHours() + pauseDurationHourRef.value);
+
+            pauseEndHourRef.value = initialMoment.getHours();
+            pauseEndMinuteRef.value = initialMoment.getMinutes();
+            modalPauseEndHourCarousel.updateMainCarouselPosition(pauseEndHourRef.value);
+            modalPauseEndMinuteCarousel.updateMainCarouselPosition(pauseEndMinuteRef.value);
+            modalPauseEndHourCarousel.populateMainCarousel();
+            modalPauseEndMinuteCarousel.populateMainCarousel();
+
+
+            modalInitialTime.classList.add('active');
+            modalPauseDetails.classList.remove('active');
+        });
+
+        // Navega do primeiro modal para o segundo
+        modalInitialTimeNextButton.addEventListener('click', () => {
+            tempPauseStartHour = initialPauseHourRef.value;
+            tempPauseStartMinute = initialPauseMinuteRef.value;
+            modalInitialTime.classList.remove('active');
+            modalPauseDetails.classList.add('active');
+        });
+
+        // Navega do segundo modal de volta para o primeiro
+        modalDetailsBackButton.addEventListener('click', () => {
+            modalPauseDetails.classList.remove('active');
+            modalInitialTime.classList.add('active');
+        });
+
+        // Alterna entre campos de duração e hora de término
+        modalPauseModeDurationRadio.addEventListener('change', () => {
+            modalCamposDuracao.style.display = 'flex';
+            modalCamposFim.style.display = 'none';
+        });
+
+        modalPauseModeEndTimeRadio.addEventListener('change', () => {
+            modalCamposDuracao.style.display = 'none';
             modalCamposFim.style.display = 'flex';
-            modalPauseEndHourCarousel.setEnabled(true);
-            modalPauseEndMinuteCarousel.setEnabled(true);
+        });
+
+        // Lógica para definir a pausa final
+        modalDetailsDefineButton.addEventListener('click', () => {
+            let finalEndHour;
+            let finalEndMinute;
+
+            tempPauseIsDailyRepeat = modalDailyRepeatCheckbox.checked;
+
+            if (modalPauseModeDurationRadio.checked) {
+                // Calcular hora de término baseada na duração
+                const startMoment = new Date();
+                startMoment.setHours(tempPauseStartHour);
+                startMoment.setMinutes(tempPauseStartMinute);
+                startMoment.setSeconds(0); // Zera segundos para cálculo preciso
+
+                startMoment.setHours(startMoment.getHours() + pauseDurationHourRef.value);
+                startMoment.setMinutes(startMoment.getMinutes() + pauseDurationMinuteRef.value);
+
+                finalEndHour = startMoment.getHours();
+                finalEndMinute = startMoment.getMinutes();
+            } else {
+                // Usar hora de término diretamente
+                finalEndHour = pauseEndHourRef.value;
+                finalEndMinute = pauseEndMinuteRef.value;
+            }
+
+            // Validar se a hora de término é posterior à de início se não for repetição diária
+            // Para repetição diária, a hora de término pode ser no dia seguinte (ex: 23h - 01h)
+            if (!tempPauseIsDailyRepeat) {
+                const startTimeInMinutes = tempPauseStartHour * 60 + tempPauseStartMinute;
+                const endTimeInMinutes = finalEndHour * 60 + finalEndMinute;
+
+                if (endTimeInMinutes <= startTimeInMinutes) {
+                    showStatusMessage("Erro: A hora de término deve ser posterior à hora de início para pausas únicas.", true);
+                    return; // Impede a adição da pausa
+                }
+            }
+
+
+            addPause(tempPauseStartHour, tempPauseStartMinute, finalEndHour, finalEndMinute, tempPauseIsDailyRepeat);
+
+            // Fecha o modal após definir a pausa
+            modalPauseDetails.classList.remove('active');
+        });
+
+        // Close modals on overlay click (for config modals)
+        modalInitialTime.addEventListener('click', (event) => {
+            if (event.target === modalInitialTime) {
+                modalInitialTime.classList.remove('active');
+            }
+        });
+
+        modalPauseDetails.addEventListener('click', (event) => {
+            if (event.target === modalPauseDetails) {
+                modalPauseDetails.classList.remove('active');
+            }
+        });
+
+        // ==========================================================
+        // GIST INTEGRATION (Implementação das funções de API)
+        // ==========================================================
+
+        const GIST_FILENAME = 'pomodorus_pauses.json'; // Nome do arquivo dentro do Gist
+
+        async function loadPausesFromGist() {
+            const pat = localStorage.getItem('github_pat');
+            const gistId = localStorage.getItem('gist_id');
+
+            if (!pat || !gistId) {
+                showStatusMessage('Token PAT ou Gist ID não configurados. Não foi possível carregar pausas do Gist.', true);
+                return;
+            }
+
+            showStatusMessage('Carregando pausas do Gist...', false);
+
+            try {
+                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: {
+                        'Authorization': `token ${pat}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                } );
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Erro ao carregar Gist: ${response.status} - ${errorData.message || response.statusText}`);
+                }
+
+                const gistData = await response.json();
+
+                if (gistData.files && gistData.files[GIST_FILENAME]) {
+                    const fileContent = gistData.files[GIST_FILENAME].content;
+                    try {
+                        const loadedPauses = JSON.parse(fileContent);
+                        // Validar se o conteúdo carregado é um array e contém os campos esperados
+                        if (Array.isArray(loadedPauses) && loadedPauses.every(p => 
+                            typeof p.startHour === 'number' && typeof p.startMinute === 'number' &&
+                            typeof p.endHour === 'number' && typeof p.endMinute === 'number' &&
+                            typeof p.isDailyRepeat === 'boolean' && typeof p.id === 'string'
+                        )) {
+                            activePauses = loadedPauses;
+                            // Resetar flags de triggered para pausas diárias ao carregar
+                            activePauses.forEach(pause => {
+                                if (pause.isDailyRepeat) {
+                                    pause.triggeredStartForToday = false;
+                                    pause.triggeredEndForToday = false;
+                                }
+                                pause.isActive = true; // Garante que pausas carregadas são ativas
+                            });
+                            updatePausesListUI();
+                            showStatusMessage('Pausas carregadas do Gist com sucesso!', false);
+                        } else {
+                            throw new Error('Formato de dados de pausas inválido no Gist.');
+                        }
+                    } catch (parseError) {
+                        throw new Error(`Erro ao analisar conteúdo do arquivo ${GIST_FILENAME}: ${parseError.message}`);
+                    }
+                } else {
+                    showStatusMessage(`Arquivo '${GIST_FILENAME}' não encontrado no Gist. Criando um novo ao salvar.`, false);
+                    activePauses = []; // Limpa as pausas se o arquivo não for encontrado
+                    updatePausesListUI();
+                }
+            } catch (error) {
+                showStatusMessage(`Falha ao carregar pausas do Gist: ${error.message}`, true);
+                console.error('Erro ao carregar Gist:', error);
+            }
         }
-    }
 
-    modalPauseEndTypeRadios.forEach(radio => {
-        radio.addEventListener('change', toggleModalPauseEndFields);
-    });
+        async function savePausesToGist() {
+            const pat = localStorage.getItem('github_pat');
+            const gistId = localStorage.getItem('gist_id');
 
-    updatePausesListUI(); // Renderiza a lista de pausas inicial
+            if (!pat || !gistId) {
+                showStatusMessage('Token PAT ou Gist ID não configurados. Não foi possível salvar pausas no Gist.', true);
+                return;
+            }
 
-    // Sincroniza os valores iniciais dos carrosséis dos modais
-    modalInitialPauseHourCarousel.updateMainCarouselPosition(initialPauseHourRef.value);
-    modalInitialPauseMinuteCarousel.updateMainPauseMinuteRef.value);
-    modalPauseDurationHourCarousel.updateMainCarouselPosition(modalPauseDurationHourRef.value);
-    modalPauseDurationMinuteCarousel.updateMainCarouselPosition(modalPauseDurationMinuteRef.value);
-    modalPauseEndHourCarousel.updateMainCarouselPosition(modalPauseEndHourRef.value);
-    modalPauseEndMinuteCarousel.updateMainCarouselPosition(modalPauseEndMinuteRef.value);
+            showStatusMessage('Salvando pausas no Gist...', false);
 
-    // Carrega a configuração do Gist se existir e tenta carregar pausas
-    const gistTokenStored = localStorage.getItem('github_pat');
-    const gistIdStored = localStorage.getItem('gist_id');
+            try {
+                const contentToSave = JSON.stringify(activePauses, null, 2); // Formata para leitura
+                const payload = {
+                    description: "Pomodorus Pauses Configuration",
+                    public: false, // Recomenda-se false para configurações pessoais
+                    files: {
+                        [GIST_FILENAME]: {
+                            content: contentToSave
+                        }
+                    }
+                };
 
-    // Preenche os inputs do Gist modal se os valores estiverem armazenados
-    gistTokenInput.value = gistTokenStored || '';
-    gistIdInput.value = gistIdStored || '';
+                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH', // Usar PATCH para atualizar um Gist existente
+                    headers: {
+                        'Authorization': `token ${pat}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload )
+                });
 
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Erro ao salvar Gist: ${response.status} - ${errorData.message || response.statusText}`);
+                }
 
-    if (gistTokenStored && gistIdStored) {
-        // Assegura que as variáveis globais sejam atualizadas
-        gistToken = gistTokenStored;
-        gistId = gistIdStored;
-        loadPausesFromGist(); // Tenta carregar pausas automaticamente
-    } else {
-        // Se não houver token ou ID do gist, desabilita a repetição diária
-        modalDailyRepeatCheckbox.disabled = true;
-        modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Requer Gist configurado)';
-        modalDailyRepeatCheckbox.nextElementSibling.style.color = '#d32f2f';
-    }
-
-    // Solicita permissão para notificações
-    if ('Notification' in window) {
-        Notification.requestPermission();
-    }
-    updateClockAndCheckPauses(); // Executa ao carregar para mostrar o relógio e estado inicial
-});
-
-
-// --- Lógica de Abertura e Navegação dos Modais de Configuração ---
-
-openPauseConfigModalButton.addEventListener('click', () => {
-    // Abre o primeiro modal e fecha o segundo, se estiver aberto
-    modalPauseDetails.classList.remove('active');
-    modalInitialTime.classList.add('active');
-
-    // Reseta valores dos carrosseis do modal 1 para a hora atual
-    const now = new Date();
-    initialPauseHourRef.value = now.getHours();
-    initialPauseMinuteRef.value = now.getMinutes();
-    modalInitialPauseHourCarousel.updateMainCarouselPosition(initialPauseHourRef.value);
-    modalInitialPauseMinuteCarousel.updateMainCarouselPosition(initialPauseMinuteRef.value);
-
-    // Reseta a seleção de duração/fim para padrão (duração)
-    modalPauseModeDurationRadio.checked = true;
-    // Chama a função para garantir que os campos de duração/fim sejam exibidos corretamente
-    document.querySelector('input[name="modal-pause-end-type"]:checked').dispatchEvent(new Event('change'));
-
-    // Redefine os valores dos carrosséis de duração/fim para padrão (ex: 0h 30m)
-    modalPauseDurationHourRef.value = 0;
-    modalPauseDurationMinuteRef.value = 30;
-    modalPauseDurationHourCarousel.updateMainCarouselPosition(modalPauseDurationHourRef.value);
-    modalPauseDurationMinuteCarousel.updateMainCarouselPosition(modalPauseDurationMinuteRef.value);
-
-    // Habilita/Desabilita o checkbox baseado no Gist ao abrir
-    const gistTokenStored = localStorage.getItem('github_pat');
-    const gistIdStored = localStorage.getItem('gist_id');
-
-    if (gistTokenStored && gistIdStored) {
-        modalDailyRepeatCheckbox.disabled = false;
-        modalDailyRepeatCheckbox.checked = false; // Garante que esteja desmarcado ao abrir novo
-        modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Gist configurado)';
-        modalDailyRepeatCheckbox.nextElementSibling.style.color = '';
-    } else {
-        modalDailyRepeatCheckbox.disabled = true;
-        modalDailyRepeatCheckbox.checked = false;
-        modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Requer Gist configurado)';
-        modalDailyRepeatCheckbox.nextElementSibling.style.color = '#d32f2f';
-    }
-});
-
-modalInitialTimeNextButton.addEventListener('click', () => {
-    // Fecha o primeiro modal e abre o segundo
-    modalInitialTime.classList.remove('active');
-    modalPauseDetails.classList.add('active');
-
-    // Assegura que o estado inicial do segundo modal seja correto
-    document.querySelector('input[name="modal-pause-end-type"]:checked').dispatchEvent(new Event('change'));
-    
-    // Habilita/Desabilita o checkbox de repetição diária com base na configuração do Gist
-    const gistTokenStored = localStorage.getItem('github_pat');
-    const gistIdStored = localStorage.getItem('gist_id');
-    modalDailyRepeatCheckbox.disabled = (!gistTokenStored || !gistIdStored);
-
-    if (modalDailyRepeatCheckbox.disabled) {
-        modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Requer Gist configurado)';
-        modalDailyRepeatCheckbox.nextElementSibling.style.color = '#d32f2f';
-    } else {
-        modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Gist configurado)';
-        modalDailyRepeatCheckbox.nextElementSibling.style.color = '';
-    }
-});
-
-modalDetailsBackButton.addEventListener('click', () => {
-    // Volta para o primeiro modal
-    modalPauseDetails.classList.remove('active');
-    modalInitialTime.classList.add('active');
-});
-
-// Lógica para fechar os modais clicando fora deles
-modalInitialTime.addEventListener('click', (event) => {
-    if (event.target === modalInitialTime) {
-        modalInitialTime.classList.remove('active');
-    }
-});
-
-modalPauseDetails.addEventListener('click', (event) => {
-    if (event.target === modalPauseDetails) {
-        modalPauseDetails.classList.remove('active');
-    }
-});
-
-
-// --- Lógica de Definição de Pausa (agora no segundo modal) ---
-modalDetailsDefineButton.addEventListener('click', () => {
-    // Fecha os modais de configuração
-    modalInitialTime.classList.remove('active');
-    modalPauseDetails.classList.remove('active');
-
-    const startHour = initialPauseHourRef.value;
-    const startMinute = initialPauseMinuteRef.value;
-    
-    // Calcula endTime (mesmo que a opção seja 'duration')
-    let calculatedEndTime = { hours: 0, minutes: 0 };
-    if (modalPauseEndTypeSelected === 'duration') {
-        const durationHours = modalPauseDurationHourRef.value;
-        const durationMinutes = modalPauseDurationMinuteRef.value;
-        let totalStartMinutes = (startHour * 60) + startMinute;
-        let totalEndMinutes = totalStartMinutes + (durationHours * 60) + durationMinutes;
-        calculatedEndTime.hours = Math.floor(totalEndMinutes / 60) % 24;
-        calculatedEndTime.minutes = totalEndMinutes % 60;
-    } else { // 'end-time'
-        calculatedEndTime.hours = modalPauseEndHourRef.value;
-        calculatedEndTime.minutes = modalPauseEndMinuteRef.value;
-    }
-
-    let newPause = {
-        id: generateUniqueId(),
-        startTime: { hours: startHour, minutes: startMinute },
-        type: modalPauseEndTypeSelected, // 'duration' or 'end-time'
-        dailyRepeat: modalDailyRepeatCheckbox.checked, // Usa 'dailyRepeat' para o objeto de pausa
-        isDailyRepeat: modalDailyRepeatCheckbox.checked, // Adiciona 'isDailyRepeat' para compatibilidade
-        lastNotifiedStart: null,
-        lastNotifiedEnd: null,
-        endTime: calculatedEndTime // Adiciona endTime calculada à pausa
-    };
-
-    let message = '';
-    if (newPause.type === 'duration') {
-        const durationHours = modalPauseDurationHourRef.value;
-        const durationMinutes = modalPauseDurationMinuteRef.value;
-        newPause.duration = { hours: durationHours, minutes: durationMinutes };
-        message = `Pausa das ${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')} por ${String(durationHours).padStart(2, '0')}h ${String(durationMinutes).padStart(2, '0')}m (Termina às ${String(calculatedEndTime.hours).padStart(2, '0')}:${String(calculatedEndTime.minutes).padStart(2, '0')})`;
-    } else { // newPause.type === 'end-time'
-        message = `Pausa das ${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')} até às ${String(calculatedEndTime.hours).padStart(2, '0')}:${String(calculatedEndTime.minutes).padStart(2, '0')}`;
-    }
-
-    if (newPause.isDailyRepeat) { // Usa newPause.isDailyRepeat para a lógica
-        message += ' (Diária)';
-        const gistTokenStored = localStorage.getItem('github_pat');
-        const gistIdStored = localStorage.getItem('gist_id');
-        if (!gistTokenStored || !gistIdStored) {
-            alert("Para definir pausas diárias, você precisa configurar seu Token e ID do Gist. Clique em 'Carregar/Salvar Pausas (Gist)'.");
-            return; // Impede a criação da pausa diária sem Gist
+                showStatusMessage('Pausas salvas no Gist com sucesso!', false);
+            } catch (error) {
+                showStatusMessage(`Falha ao salvar pausas no Gist: ${error.message}`, true);
+                console.error('Erro ao salvar Gist:', error);
+            }
         }
-    }
 
-    activePauses.push(newPause);
-    updatePausesListUI(); // Renomeada de renderPausesList
-    alarmDisplay.textContent = message;
-    alarmDisplay.style.color = '#00796b'; // Green for success
+        const manageGistButton = document.getElementById('manageGistButton');
+        const gistConfigModal = document.getElementById('gist-config-modal');
+        const cancelGistConfigButton = document.getElementById('cancelGistConfig');
+        const saveGistConfigButton = document.getElementById('saveGistConfig');
+        const gistTokenInput = document.getElementById('gist-token');
+        const gistIdInput = document.getElementById('gist-id');
 
-    showDesktopNotification('Pausa Definida', message);
+        manageGistButton.addEventListener('click', () => {
+            gistConfigModal.classList.add('active');
+            // Aqui você carregaria o PAT e o Gist ID salvos localmente, se houver
+            gistTokenInput.value = localStorage.getItem('github_pat') || '';
+            gistIdInput.value = localStorage.getItem('gist_id') || '';
+        });
 
-    // Se for uma pausa diária, tenta salvar no Gist
-    if (newPause.isDailyRepeat) { // Usa newPause.isDailyRepeat
-        savePausesToGist();
-    }
-});
+        cancelGistConfigButton.addEventListener('click', () => {
+            gistConfigModal.classList.remove('active');
+        });
 
+        saveGistConfigButton.addEventListener('click', async () => {
+            const pat = gistTokenInput.value.trim();
+            const gistId = gistIdInput.value.trim();
 
-// --- Lógica do Gist (Carregar/Salvar Pausas) ---
+            if (!pat || !gistId) {
+                showStatusMessage('Token PAT e Gist ID são obrigatórios para integração com Gist.', true);
+                return;
+            }
 
-manageGistButton.addEventListener('click', () => {
-    // Abre o modal de configuração do Gist
-    gistTokenInput.value = localStorage.getItem('github_pat') || '';
-    gistIdInput.value = localStorage.getItem('gist_id') || '';
-    gistConfigModal.classList.add('active');
-});
+            localStorage.setItem('github_pat', pat);
+            localStorage.setItem('gist_id', gistId);
+            showStatusMessage('Configurações do Gist salvas. Tentando carregar pausas...', false);
 
-cancelGistConfigButton.addEventListener('click', () => {
-    gistConfigModal.classList.remove('active');
-});
+            gistConfigModal.classList.remove('active');
+            loadPausesFromGist(); // Chama a função para carregar pausas após salvar as credenciais
+        });
 
-saveGistConfigButton.addEventListener('click', async () => {
-    const pat = gistTokenInput.value.trim();
-    const gistIdVal = gistIdInput.value.trim();
-
-    if (!pat || !gistIdVal) {
-        showStatusMessage('Token PAT e Gist ID são obrigatórios para integração com Gist.', true);
-        modalDailyRepeatCheckbox.disabled = true;
-        modalDailyRepeatCheckbox.checked = false;
-        modalDailyRepeatCheckbox.nextElementSibling.textContent = 'Repetição Diária (Requer Gist configurado)';
-        modalDailyRepeatCheckbox.nextElementSibling.style.color = '#d32f2f';
-        return;
-    }
-
-    localStorage.setItem('github_pat', pat);
-    localStorage.setItem('gist_id', gistIdVal);
-    
-    // Atualiza as variáveis globais
-    gistToken = pat;
-    gistId = gistIdVal;
-
-    gistConfigModal.classList.remove('active');
-    await loadPausesFromGist(); // Tenta carregar as pausas após salvar a config
-});
-
-// Desabilita o checkbox de repetição diária se o Gist não estiver configurado
-modalDailyRepeatCheckbox.addEventListener('change', () => {
-    const gistTokenStored = localStorage.getItem('github_pat');
-    const gistIdStored = localStorage.getItem('gist_id');
-
-    if (modalDailyRepeatCheckbox.checked && (!gistTokenStored || !gistIdStored)) {
-        alert("Para usar a repetição diária, você precisa configurar seu Token e ID do Gist. Clique em 'Carregar/Salvar Pausas (Gist)'.");
-        modalDailyRepeatCheckbox.checked = false; // Desmarca se não puder usar
-    }
-});
+        // ==========================================================
+        // INICIALIZAÇÃO GERAL
+        // =================
     </script>
 </body>
 </html>
